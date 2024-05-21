@@ -1,0 +1,5 @@
+{
+    "name" : "UMAP Analysis",
+    "version" : "1",
+    "dependencies" : ["Points"]
+}
