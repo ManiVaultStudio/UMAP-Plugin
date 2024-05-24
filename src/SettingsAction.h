@@ -1,12 +1,56 @@
 #pragma once
 
 #include "actions/GroupAction.h"
+#include "actions/HorizontalGroupAction.h"
 #include "actions/IntegralAction.h"
 #include "actions/StringAction.h"
 #include "actions/TriggerAction.h"
 
 /** All GUI related classes are in the HDPS Graphical User Interface namespace */
 using namespace mv::gui;
+
+
+/// ////////////////// ///
+/// Start Stop Buttons ///
+/// ////////////////// ///
+
+class ButtonsGroupAction : public HorizontalGroupAction
+{
+public:
+
+    /**
+     * Constructor
+     * @param parent Pointer to parent object
+     */
+    ButtonsGroupAction(QObject* parent);
+
+    void changeEnabled(bool cont, bool stop)
+    {
+        _continueComputationAction.setEnabled(cont);
+        _stopComputationAction.setEnabled(stop);
+    }
+
+    void setStarted()
+    {
+        changeEnabled(false, true);
+    }
+
+    void setFinished()
+    {
+        changeEnabled(true, false);
+    }
+
+public: // Action getters
+
+    TriggerAction& getStartComputationAction() { return _startComputationAction; }
+    TriggerAction& getContinueComputationAction() { return _continueComputationAction; }
+    TriggerAction& getStopComputationAction() { return _stopComputationAction; }
+
+protected:
+    TriggerAction   _startComputationAction;        /** Start computation action */
+    TriggerAction   _continueComputationAction;     /** Continue computation action */
+    TriggerAction   _stopComputationAction;         /** Stop computation action */
+};
 
 /**
  * UMAPSettingsAction class
@@ -28,12 +72,13 @@ public: // Action getters
 
     StringAction& getCurrentIterationAction() { return _currentIterationAction; }
     IntegralAction& getNumberOfIterationsAction() { return _numberOfIterationsAction; }
-    TriggerAction& getStartAnalysisAction() { return _startAnalysisAction; }
-    TriggerAction& getUpdateAction() { return _updateAction; }
+    ButtonsGroupAction& getStartStopAction() { return _startStopActions; }
+    TriggerAction& getStartAction() { return _startStopActions.getStartComputationAction(); }
+    TriggerAction& getContinueAction() { return _startStopActions.getContinueComputationAction(); }
+    TriggerAction& getStopAction() { return _startStopActions.getStopComputationAction(); }
 
 public:
-    StringAction    _currentIterationAction;        /** Current iteration string action from the mv::gui namespace */
-    IntegralAction  _numberOfIterationsAction;      /** Number of iterations action from the mv::gui namespace */
-    TriggerAction   _startAnalysisAction;           /** Start loop  trigger action from the mv::gui namespace */
-    TriggerAction   _updateAction;           /** Start loop  trigger action from the mv::gui namespace */
+    StringAction        _currentIterationAction;        /** Current iteration string action from the mv::gui namespace */
+    IntegralAction      _numberOfIterationsAction;      /** Number of iterations action from the mv::gui namespace */
+    ButtonsGroupAction  _startStopActions;              /** Buttons that control start and top of computation */
 };

@@ -31,8 +31,9 @@ Q_OBJECT
 
 public:
 
-    using scalar_t  = float;
-    using UMAP      = umappp::Umap<scalar_t>;
+    using scalar_t      = float;
+    using UMAP          = umappp::Umap<scalar_t>;
+    using UMAP_STATUS   = std::unique_ptr<UMAP::Status>;
 
     /**
      * Constructor
@@ -55,7 +56,8 @@ private:
     Dataset<Points>         _outputPoints;
     
     UMAP                    _umap;
-    std::unique_ptr<UMAP::Status> _umapStatus;
+    UMAP_STATUS             _umapStatus;
+    bool                    _shouldStop;
 };
 
 /**

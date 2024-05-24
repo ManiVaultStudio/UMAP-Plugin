@@ -5,7 +5,9 @@
 #include <PointData/DimensionsPickerAction.h>
 #include <PointData/InfoAction.h>
 
+#pragma warning(disable:4477)       // annoy internal: print formatting warnings
 #include "knncolle/knncolle.hpp"
+#pragma warning(default:4477)
 
 #include <QDebug>
 #include <QFuture>
@@ -13,6 +15,7 @@
 #include <QtConcurrent>
 #include <QtCore>
 
+#include <limits>
 #include <thread>
 
 Q_PLUGIN_METADATA(IID "studio.manivault.UMAPAnalysisPlugin")
@@ -28,7 +31,8 @@ UMAPAnalysisPlugin::UMAPAnalysisPlugin(const PluginFactory* factory) :
     _outDimensions(2),
     _outputPoints(nullptr),
     _umap(),
-    _umapStatus(nullptr)
+    _umapStatus(nullptr),
+    _shouldStop(false)
 {
 }
 
@@ -103,77 +107,45 @@ void UMAPAnalysisPlugin::init()
             nThreads = 1;
         bool useThredas = nThreads > 1;
 
+        const int numNeighbors = 20;
+
         _umap = UMAP();
-        _umap.set_num_neighbors(20);
-        _umap.set_num_epochs(numberOfIterations);
+        _umap.set_num_neighbors(numNeighbors);
+        _umap.set_num_epochs(std::numeric_limits<int>::max());
         _umap.set_parallel_optimization(useThredas);
         _umap.set_num_threads(nThreads);
 
-        std::vector<scalar_t> embedding(_embedding.size());
         int nDim = numEnabledDimensions;
 
+        qDebug() << "UMAP: compute knn: " << numNeighbors << " neighbors";
+
         knnAnnoy searcher(nDim, numPoints, data.data(), /* ntrees = */ 20);
-        _umapStatus = std::make_unique<UMAP::Status>(_umap.initialize(&searcher, _outDimensions, embedding.data()));
-
-        datasetTask.setProgressDescription("Computing...");
-
-        auto updateEmbeddingAndUI = [this, updatePoints, updateCurrentIterationAction](int iter, const std::vector<scalar_t>& emb) {
-            // Copy from umap worker and publish to core
-            for (size_t i = 0; i < emb.size(); i++)
-                _embedding[i] = emb[i];
-
-            updatePoints();
-            updateCurrentIterationAction(iter);
-        };
-
-        // Iteratively update UMAP embedding
-        for (int iter = 1; iter < numberOfIterations; iter++)
-        {
-            datasetTask.setProgress(iter / static_cast<float>(numberOfIterations));
-            datasetTask.setProgressDescription(QString("Computing iteration %1/%2").arg(QString::number(iter), QString::number(numberOfIterations)));
-
-            _umapStatus->run(iter);
-
-            if (iter % 10 == 0)
-                updateEmbeddingAndUI(iter, embedding);
-
-            QCoreApplication::processEvents();
-        }
-
-        updateEmbeddingAndUI(numberOfIterations, embedding);
-
-        qDebug() << "Total iterations: " << _umapStatus->epoch() << " " << _umapStatus->num_epochs();
-
-        // Flag the analysis task as finished
-        datasetTask.setFinished();
-        };
-    
-    auto continueUMAP = [this, updatePoints, updateCurrentIterationAction]() {
-        auto& datasetTask = getOutputDataset()->getTask();
-        datasetTask.setName("UMAP analysis");
-        datasetTask.setRunning();
-        datasetTask.setProgress(0.0f);
-        datasetTask.setProgressDescription("Computing...");
-
-        const auto numberOfIterations = _settingsAction.getNumberOfIterationsAction().getValue();
-        const auto currentIterations = _settingsAction.getCurrentIterationAction().getString().toInt();
+        _umapStatus = std::make_unique<UMAP::Status>(_umap.initialize(&searcher, _outDimensions, _embedding.data()));
 
         auto updateEmbeddingAndUI = [this, updatePoints, updateCurrentIterationAction](int iter) {
-            const scalar_t* embedding = _umapStatus->embedding();
-
-            // Copy from umap worker and publish to core
-            for (size_t i = 0; i < _embedding.size(); i++)
-                _embedding[i] = *(embedding + i);
-
             updatePoints();
             updateCurrentIterationAction(iter);
             };
 
+        updatePoints();
+
+        if (numberOfIterations == 0 || _shouldStop)
+        {
+            _shouldStop = false;
+            return;
+        }
+
         datasetTask.setProgressDescription("Computing...");
 
+        qDebug() << "UMAP: start gradient descent: " << numberOfIterations << " iterations";
+
+        int iter = 1;
         // Iteratively update UMAP embedding
-        for (int iter = currentIterations; iter < numberOfIterations; iter++)
+        for (; iter < numberOfIterations; iter++)
         {
+            if (_shouldStop)
+                break;
+
             datasetTask.setProgress(iter / static_cast<float>(numberOfIterations));
             datasetTask.setProgressDescription(QString("Computing iteration %1/%2").arg(QString::number(iter), QString::number(numberOfIterations)));
 
@@ -185,20 +157,79 @@ void UMAPAnalysisPlugin::init()
             QCoreApplication::processEvents();
         }
 
-        updateEmbeddingAndUI(numberOfIterations);
+        updateEmbeddingAndUI(iter);
 
-        qDebug() << "Total iterations (cont.): " << _umapStatus->epoch() << " " << _umapStatus->num_epochs();
+        qDebug() << "Total iterations: " << _umapStatus->epoch() + 1 ;
 
         // Flag the analysis task as finished
         datasetTask.setFinished();
+        _shouldStop = false;
+        };
+    
+    auto continueUMAP = [this, updatePoints, updateCurrentIterationAction]() {
+
+        const auto numberOfIterations = _settingsAction.getNumberOfIterationsAction().getValue();
+        const auto currentIterations = _settingsAction.getCurrentIterationAction().getString().toInt();
+
+        const auto newIterations = numberOfIterations - currentIterations;
+
+        if (newIterations < 0)
+        {
+            _shouldStop = false;
+            return;
+        }
+
+        auto& datasetTask = getOutputDataset()->getTask();
+        datasetTask.setName("UMAP analysis");
+        datasetTask.setRunning();
+        datasetTask.setProgress(0.0f);
+        datasetTask.setProgressDescription("Computing...");
+
+        qDebug() << "UMAP: start gradient descent: " << newIterations << " iterations";
+
+        auto updateEmbeddingAndUI = [this, updatePoints, updateCurrentIterationAction](int iter) {
+            updatePoints();
+            updateCurrentIterationAction(iter);
+            };
+
+        datasetTask.setProgressDescription("Computing...");
+
+        int iter = currentIterations + 1;
+        // Iteratively update UMAP embedding
+        for (; iter < numberOfIterations; iter++)
+        {
+            if (_shouldStop)
+                break;
+
+            datasetTask.setProgress(iter / static_cast<float>(numberOfIterations));
+            datasetTask.setProgressDescription(QString("Computing iteration %1/%2").arg(QString::number(iter), QString::number(numberOfIterations)));
+
+            _umapStatus->run(iter);
+
+            if (iter % 10 == 0)
+                updateEmbeddingAndUI(iter);
+
+            QCoreApplication::processEvents();
+        }
+
+        updateEmbeddingAndUI(iter);
+
+        qDebug() << "Total iterations: " << _umapStatus->epoch() + 1;
+
+        // Flag the analysis task as finished
+        datasetTask.setFinished();
+        _shouldStop = false;
         };
 
 
     // Start the analysis when the user clicks the start analysis push button
-    connect(&_settingsAction.getStartAnalysisAction(), &mv::gui::TriggerAction::triggered, this, [this, computeUMAP] {
+    connect(&_settingsAction.getStartAction(), &mv::gui::TriggerAction::triggered, this, [this, computeUMAP] {
 
         // Disable actions during analysis
         _settingsAction.getNumberOfIterationsAction().setEnabled(false);
+        _settingsAction.getStartAction().setEnabled(false);
+        _settingsAction.getContinueAction().setEnabled(false);
+        _settingsAction.getStopAction().setEnabled(true);
 
         // Run UMAP in another thread
         QFuture<void> future = QtConcurrent::run(computeUMAP);
@@ -207,16 +238,22 @@ void UMAPAnalysisPlugin::init()
         // Enabled actions again once computation is done
         connect(watcher, &QFutureWatcher<int>::finished, [this, watcher]() {
            _settingsAction.getNumberOfIterationsAction().setEnabled(true);
-            watcher->deleteLater();
+           //_settingsAction.getStartAction().setEnabled(true);
+           _settingsAction.getContinueAction().setEnabled(true);
+           _settingsAction.getStopAction().setEnabled(false);
+           watcher->deleteLater();
             });
 
         watcher->setFuture(future);
         });
 
-    connect(&_settingsAction.getUpdateAction(), &mv::gui::TriggerAction::triggered, this, [this, continueUMAP] {
+    connect(&_settingsAction.getContinueAction(), &mv::gui::TriggerAction::triggered, this, [this, continueUMAP] {
 
         // Disable actions during analysis
         _settingsAction.getNumberOfIterationsAction().setEnabled(false);
+        _settingsAction.getStartAction().setEnabled(false);
+        _settingsAction.getContinueAction().setEnabled(false);
+        _settingsAction.getStopAction().setEnabled(true);
 
         // Run UMAP in another thread
         QFuture<void> future = QtConcurrent::run(continueUMAP);
@@ -225,10 +262,17 @@ void UMAPAnalysisPlugin::init()
         // Enabled actions again once computation is done
         connect(watcher, &QFutureWatcher<int>::finished, [this, watcher]() {
            _settingsAction.getNumberOfIterationsAction().setEnabled(true);
-            watcher->deleteLater();
+           _settingsAction.getStartAction().setEnabled(true);
+           _settingsAction.getContinueAction().setEnabled(true);
+           _settingsAction.getStopAction().setEnabled(false);
+           watcher->deleteLater();
             });
 
         watcher->setFuture(future);
+        });
+
+    connect(&_settingsAction.getStopAction(), &mv::gui::TriggerAction::triggered, this, [this] {
+        _shouldStop = true;
         });
 
     // Initialize current iteration action
