@@ -5,7 +5,7 @@
 #include <PointData/DimensionsPickerAction.h>
 #include <PointData/InfoAction.h>
 
-#include "umappp/Umap.hpp"
+#include "knncolle/knncolle.hpp"
 
 #include <QDebug>
 #include <QFuture>
@@ -27,7 +27,8 @@ UMAPAnalysisPlugin::UMAPAnalysisPlugin(const PluginFactory* factory) :
     _settingsAction(),
     _outDimensions(2),
     _outputPoints(nullptr),
-    _umap(nullptr)
+    _umap(),
+    _umapStatus(nullptr)
 {
 }
 
@@ -102,20 +103,17 @@ void UMAPAnalysisPlugin::init()
             nThreads = 1;
         bool useThredas = nThreads > 1;
 
-        _umap = std::make_unique<UMAP>();
-        _umap->set_num_neighbors(20);
-        _umap->set_num_epochs(numberOfIterations);
-        _umap->set_parallel_optimization(useThredas);
-        _umap->set_num_threads(nThreads);
+        _umap = UMAP();
+        _umap.set_num_neighbors(20);
+        _umap.set_num_epochs(numberOfIterations);
+        _umap.set_parallel_optimization(useThredas);
+        _umap.set_num_threads(nThreads);
 
         std::vector<scalar_t> embedding(_embedding.size());
         int nDim = numEnabledDimensions;
 
         knnAnnoy searcher(nDim, numPoints, data.data(), /* ntrees = */ 20);
-        //auto status = _umap->initialize(&searcher, _outDimensions, embedding.data());
-
-        //auto status = std::make_unique<UMAP::Status>(_umap->initialize(&searcher, _outDimensions, embedding.data()));
-        auto status = _umap->initialize(&searcher, _outDimensions, embedding.data());
+        _umapStatus = std::make_unique<UMAP::Status>(_umap.initialize(&searcher, _outDimensions, embedding.data()));
 
         // Copy from umap worker and publish to core
         auto updateProgress = [this, &embedding, updatePoints, updateCurrentIterationAction](int iteration) {
@@ -137,7 +135,7 @@ void UMAPAnalysisPlugin::init()
             datasetTask.setProgress(i / static_cast<float>(numberOfIterations));
             datasetTask.setProgressDescription(QString("Computing iteration %1/%2").arg(QString::number(i), QString::number(numberOfIterations)));
 
-            status.run(i);
+            _umapStatus->run(i);
 
             if (i % 10 == 0)
                 updateProgress(i);
@@ -160,6 +158,16 @@ void UMAPAnalysisPlugin::init()
 
     //    const auto numberOfIterations = _settingsAction.getNumberOfIterationsAction().getValue();
     //    const auto currentIterations = _settingsAction.getCurrentIterationAction().getString().toInt();
+
+    //    _umap.
+
+    //    auto status = UMAP::Status(
+    //        umappp::similarities_to_epochs(const NeighborList<Float>&p, int num_epochs, UMAP::Defaults::negative_sample_rate),
+    //        seed,
+    //        std::move(pcopy),
+    //        _outDimensions,
+    //        embedding
+    //    );
 
     //    const scalar_t* embedding = _umapStatus->embedding();
 

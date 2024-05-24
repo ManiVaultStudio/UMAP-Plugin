@@ -6,15 +6,14 @@
 
 #include "SettingsAction.h"
 
+#define UMAPPP_CUSTOM_NEIGHBORS // due to an older hsnw version in knncolle
+#include "umappp/Umap.hpp"
+#undef UMAPPP_CUSTOM_NEIGHBORS
+
 #include <memory>
 
 using namespace mv::plugin;
 using namespace mv;
-
-namespace umappp {
-    template <typename T>
-    class Umap;
-}
 
 /**
  * UMAP analysis plugin class
@@ -34,8 +33,6 @@ public:
 
     using scalar_t  = float;
     using UMAP      = umappp::Umap<scalar_t>;
-    //using UMAP      = umappp::Umap<scalar_t>;
-    //using UMAP_STATUS = std::unique_ptr<umappp::Umap<scalar_t>::Status>;
 
     /**
      * Constructor
@@ -57,8 +54,8 @@ private:
     int                     _outDimensions;     /** The number of dimensions to reduce to */
     Dataset<Points>         _outputPoints;
     
-    std::unique_ptr<UMAP>   _umap;
-    //UMAP_STATUS             _umapStatus;
+    UMAP                    _umap;
+    std::unique_ptr<UMAP::Status> _umapStatus;
 };
 
 /**
