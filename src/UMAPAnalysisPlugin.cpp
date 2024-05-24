@@ -1,116 +1,86 @@
 #include "UMAPAnalysisPlugin.h"
 
-#include <PointData/DimensionsPickerAction.h>
+#include <util/Icon.h>
 
-#include <QtCore>
-#include <QDebug>
+#include <PointData/DimensionsPickerAction.h>
+#include <PointData/InfoAction.h>
 
 #include "umappp/Umap.hpp"
 
-Q_PLUGIN_METADATA(IID "nl.ManiVault.UMAPAnalysisPlugin")
+#include <QDebug>
+#include <QFuture>
+#include <QFutureWatcher>
+#include <QtConcurrent>
+#include <QtCore>
+
+#include <thread>
+
+Q_PLUGIN_METADATA(IID "studio.manivault.UMAPAnalysisPlugin")
 
 using namespace mv;
 using namespace mv::plugin;
 
-// Initialize the random number generator
-QRandomGenerator UMAPAnalysisPlugin::Point::rng;
-
-// Initialize the dimension names
-std::vector<QString> UMAPAnalysisPlugin::Point::dimensionNames = std::vector<QString>({"UMAP x", "UMAP y" });
-
-// Initialize the number of dimensions in the point
-std::uint32_t UMAPAnalysisPlugin::Point::numberOfDimensions = 2;
+using knnAnnoy = knncolle::Annoy<Annoy::Euclidean, std::int32_t, UMAPAnalysisPlugin::scalar_t, UMAPAnalysisPlugin::scalar_t, std::int32_t, UMAPAnalysisPlugin::scalar_t>;
 
 UMAPAnalysisPlugin::UMAPAnalysisPlugin(const PluginFactory* factory) :
     AnalysisPlugin(factory),
     _settingsAction(),
-    _pointHeadings(),
     _outDimensions(2),
-    _outputPoints(nullptr)
+    _outputPoints(nullptr),
+    _umap(nullptr)
+{
+}
+
+UMAPAnalysisPlugin::~UMAPAnalysisPlugin()
 {
 }
 
 void UMAPAnalysisPlugin::init()
 {
     // Create UMAP output dataset (a points dataset which is derived from the input points dataset) and set the output dataset
-    setOutputDataset(_core->createDerivedDataset("UMAP Embedding", getInputDataset(), getInputDataset()));
+    setOutputDataset(mv::data().createDerivedDataset("UMAP Embedding", getInputDataset(), getInputDataset()));
 
-    // Retrieve the input dataset for our specific data type (in our case points)
-    // The HDPS core sets the input dataset reference when the plugin is instantiated
     const auto inputPoints  = getInputDataset<Points>();
-
-    // Retrieve the output dataset for our specific data type (in our case points)
     _outputPoints = getOutputDataset<Points>();
 
-    // Set the dimension names as visible in the GUI
-    _outputPoints->setDimensionNames(Point::dimensionNames);
-    
-    // Performs points update
+    // Inform the core (and thus others) that the data changed
     const auto updatePoints = [this]() {
-
-        // Assign the output points to the output dataset
-        int d = Point::numberOfDimensions;
-        _outputPoints->setData(reinterpret_cast<float*>(_embedding.data()), _embedding.size() / d, d);
-
-        // Inform the core (and thus others) that the data changed
-        events().notifyDatasetDataChanged(_output);
+        _outputPoints->setData(_embedding.data(), _embedding.size() / _outDimensions, _outDimensions);
+        events().notifyDatasetDataChanged(_outputPoints);
     };
 
-    // Initializes the points
-    const auto initializePoints = [this, inputPoints, updatePoints]() {
+    _embedding.resize(inputPoints->getNumPoints() * _outDimensions);
+    updatePoints();
 
-        if (_embedding.size() != inputPoints->getNumPoints() * _outDimensions) {
-
-            // Resize the point positions and headings
-            _embedding.resize(inputPoints->getNumPoints() * _outDimensions);
-        }
-        else {
-
-            std::fill(_embedding.begin(), _embedding.end(), 0.0);
-        }
-
-        // Update the points
-        updatePoints();
-    };
+    // Set the dimension names as visible in the GUI
+    _outputPoints->setDimensionNames({ "UMAP x", "UMAP y" });
+    events().notifyDatasetDataDimensionsChanged(_outputPoints);
 
     // Inject the settings action in the output points dataset 
     // By doing so, the settings user interface will be accessible though the data properties widget
     _outputPoints->addAction(_settingsAction);
     
+    // Automatically focus on the UMAP data set
+    _outputPoints->getDataHierarchyItem().select();
+    _outputPoints->_infoAction->collapse();
+
     // Update current iteration action
     const auto updateCurrentIterationAction = [this](const std::int32_t& currentIteration = 0) {
         _settingsAction.getCurrentIterationAction().setString(QString::number(currentIteration));
     };
 
-    // Start the analysis when the user clicks the start analysis push button
-    connect(&_settingsAction.getStartAnalysisAction(), &mv::gui::TriggerAction::triggered, this, [this, initializePoints, updatePoints, updateCurrentIterationAction, inputPoints]() {
-
-        // Initialize our points
-        initializePoints();
-
-        // Disable actions during analysis
-        _settingsAction.getNumberOfIterationsAction().setEnabled(false);
-
-        // Get reference to dataset task for reporting progress
+    auto computeUMAP = [this, updatePoints, updateCurrentIterationAction, inputPoints]() {
         auto& datasetTask = getOutputDataset()->getTask();
-
-        // Set the task name as it will appear in the data hierarchy viewer
         datasetTask.setName("UMAP analysis");
-
-        // In order to report progress the task status has to be set to running
         datasetTask.setRunning();
-
-        // Zero progress at the start
         datasetTask.setProgress(0.0f);
-
-        // Set task description as it will appear in the data hierarchy viewer
-        datasetTask.setProgressDescription("Initializing");
+        datasetTask.setProgressDescription("Initializing...");
 
         // Get the number of iterations from the settings
         const auto numberOfIterations = _settingsAction.getNumberOfIterationsAction().getValue();
-        
+
         // Create list of data from the enabled dimensions
-        std::vector<double> data;
+        std::vector<scalar_t> data;
         std::vector<unsigned int> indices;
 
         // Extract the enabled dimensions from the data
@@ -125,134 +95,164 @@ void UMAPAnalysisPlugin::init()
             if (enabledDimensions[i])
                 indices.push_back(i);
 
-        inputPoints->populateDataForDimensions<std::vector<double>, std::vector<unsigned int>>(data, indices);
-        
-        //std::vector<double> input(data.size());
-        //for(int i = 0; i < data.size())
-        
-        umappp::Umap umap;
-        umap.set_num_neighbors(20).set_num_epochs(numberOfIterations);
-        std::vector<double> embedding(_embedding.size());
-        int nDim = numEnabledDimensions;
-        auto status = umap.initialize(nDim, numPoints, data.data(), _outDimensions, embedding.data());
+        inputPoints->populateDataForDimensions<std::vector<scalar_t>, std::vector<unsigned int>>(data, indices);
 
-        // Do computation
+        unsigned int nThreads = std::thread::hardware_concurrency();
+        if (nThreads == 0)
+            nThreads = 1;
+        bool useThredas = nThreads > 1;
+
+        _umap = std::make_unique<UMAP>();
+        _umap->set_num_neighbors(20);
+        _umap->set_num_epochs(numberOfIterations);
+        _umap->set_parallel_optimization(useThredas);
+        _umap->set_num_threads(nThreads);
+
+        std::vector<scalar_t> embedding(_embedding.size());
+        int nDim = numEnabledDimensions;
+
+        knnAnnoy searcher(nDim, numPoints, data.data(), /* ntrees = */ 20);
+        //auto status = _umap->initialize(&searcher, _outDimensions, embedding.data());
+
+        //auto status = std::make_unique<UMAP::Status>(_umap->initialize(&searcher, _outDimensions, embedding.data()));
+        auto status = _umap->initialize(&searcher, _outDimensions, embedding.data());
+
+        // Copy from umap worker and publish to core
+        auto updateProgress = [this, &embedding, updatePoints, updateCurrentIterationAction](int iteration) {
+
+            for (size_t i = 0; i < embedding.size(); i++)
+                _embedding[i] = embedding[i];
+
+            updatePoints();
+            updateCurrentIterationAction(iteration + 1);
+
+            qDebug() << "Iteration " << iteration;
+            };
+
         datasetTask.setProgressDescription("Computing...");
 
-        // Perform the loop
-        for (int i = 0; i < numberOfIterations; i++)
+        // Iteratively update UMAP embedding
+        for (int i = 1; i < numberOfIterations; i++)
         {
-            QCoreApplication::processEvents();
-            
-            // Update task progress
             datasetTask.setProgress(i / static_cast<float>(numberOfIterations));
-
-            // Update task progress
             datasetTask.setProgressDescription(QString("Computing iteration %1/%2").arg(QString::number(i), QString::number(numberOfIterations)));
 
-            // Iterate the UMAP
-            status.run(i);//run(i)
-            
-            // copy double to float
-            for(size_t i = 0; i < embedding.size(); i++)
-                _embedding[i] = static_cast<float>(embedding[i]);
+            status.run(i);
 
-            // Update the points
-            updatePoints();
+            if (i % 10 == 0)
+                updateProgress(i);
 
-            // Update current iteration action
-            updateCurrentIterationAction(i + 1);
+            QCoreApplication::processEvents();
         }
+
+        updateProgress(numberOfIterations);
 
         // Flag the analysis task as finished
         datasetTask.setFinished();
+        };
+    
+    //auto continueUMAP = [this, updatePoints, updateCurrentIterationAction, inputPoints]() {
+    //    auto& datasetTask = getOutputDataset()->getTask();
+    //    datasetTask.setName("UMAP analysis");
+    //    datasetTask.setRunning();
+    //    datasetTask.setProgress(0.0f);
+    //    datasetTask.setProgressDescription("Computing...");
 
-        // Enabled actions again
-        _settingsAction.getNumberOfIterationsAction().setEnabled(true);
-    });
+    //    const auto numberOfIterations = _settingsAction.getNumberOfIterationsAction().getValue();
+    //    const auto currentIterations = _settingsAction.getCurrentIterationAction().getString().toInt();
+
+    //    const scalar_t* embedding = _umapStatus->embedding();
+
+    //    // Copy from umap worker and publish to core
+    //    auto updateProgress = [this, &embedding, updatePoints, updateCurrentIterationAction](int iteration) {
+
+    //        const auto nElmens = _umapStatus->nobs() * _umapStatus->ndim();
+
+    //        for (size_t i = 0; i < nElmens; i++)
+    //            _embedding[i] = *(embedding + i);
+
+    //        updatePoints();
+    //        updateCurrentIterationAction(iteration + 1);
+
+    //        qDebug() << "Iteration " << iteration;
+    //        };
+
+    //    datasetTask.setProgressDescription("Computing...");
+
+    //    // Iteratively update UMAP embedding
+    //    for (int i = currentIterations; i < numberOfIterations; i++)
+    //    {
+    //        datasetTask.setProgress(i / static_cast<float>(numberOfIterations));
+    //        datasetTask.setProgressDescription(QString("Computing iteration %1/%2").arg(QString::number(i), QString::number(numberOfIterations)));
+
+    //        _umapStatus->run(i);
+
+    //        if (i % 10 == 0)
+    //            updateProgress(i);
+
+    //        QCoreApplication::processEvents();
+    //    }
+
+    //    updateProgress(numberOfIterations);
+
+    //    // Flag the analysis task as finished
+    //    datasetTask.setFinished();
+    //    };
+
+
+    // Start the analysis when the user clicks the start analysis push button
+    connect(&_settingsAction.getStartAnalysisAction(), &mv::gui::TriggerAction::triggered, this, [this, computeUMAP] {
+
+        // Disable actions during analysis
+        _settingsAction.getNumberOfIterationsAction().setEnabled(false);
+
+        // Run UMAP in another thread
+        QFuture<void> future = QtConcurrent::run(computeUMAP);
+        QFutureWatcher<void>* watcher = new QFutureWatcher<void>();
+
+        // Enabled actions again once computation is done
+        connect(watcher, &QFutureWatcher<int>::finished, [this, watcher]() {
+           _settingsAction.getNumberOfIterationsAction().setEnabled(true);
+            watcher->deleteLater();
+            });
+
+        watcher->setFuture(future);
+        });
+
+    //connect(&_settingsAction.getUpdateAction(), &mv::gui::TriggerAction::triggered, this, [this, continueUMAP] {
+
+    //    // Disable actions during analysis
+    //    _settingsAction.getNumberOfIterationsAction().setEnabled(false);
+
+    //    // Run UMAP in another thread
+    //    QFuture<void> future = QtConcurrent::run(continueUMAP);
+    //    QFutureWatcher<void>* watcher = new QFutureWatcher<void>();
+
+    //    // Enabled actions again once computation is done
+    //    connect(watcher, &QFutureWatcher<int>::finished, [this, watcher]() {
+    //       _settingsAction.getNumberOfIterationsAction().setEnabled(true);
+    //        watcher->deleteLater();
+    //        });
+
+    //    watcher->setFuture(future);
+    //    });
 
     // Initialize current iteration action
     updateCurrentIterationAction();
-
-    // Initialize our points
-    initializePoints();
-
-    // Register for points datasets events using a custom callback function
-    _eventListener.addSupportedEventType(static_cast<std::uint32_t>(EventType::DatasetAdded));
-    _eventListener.addSupportedEventType(static_cast<std::uint32_t>(EventType::DatasetDataChanged));
-    _eventListener.addSupportedEventType(static_cast<std::uint32_t>(EventType::DatasetRemoved));
-    _eventListener.addSupportedEventType(static_cast<std::uint32_t>(EventType::DatasetDataSelectionChanged));
-
-    _eventListener.registerDataEventByType(PointType, std::bind(&UMAPAnalysisPlugin::onDataEvent, this, std::placeholders::_1));
 }
 
-void UMAPAnalysisPlugin::onDataEvent(mv::DatasetEvent* dataEvent)
+
+/// ////////////// ///
+/// Plugin Factory ///
+/// ////////////// ///
+
+QIcon UMAPAnalysisPluginFactory::getIcon(const QColor& color /*= Qt::black*/) const
 {
-    // The data event has a type so that we know what type of data event occurred (e.g. data added, changed, removed, renamed, selection changes)
-    switch (dataEvent->getType()) {
-
-        // A points dataset was added
-        case EventType::DatasetAdded:
-        {
-            // Cast the data event to a data added event
-            const auto dataAddedEvent = static_cast<DatasetAddedEvent*>(dataEvent);
-
-            // Get the GUI name of the added points dataset and print to the console
-            qDebug() << dataAddedEvent->getDataset()->getGuiName() << "was added";
-
-            break;
-        }
-
-        // Points dataset data has changed
-        case EventType::DatasetDataChanged:
-        {
-            // Cast the data event to a data changed event
-            const auto dataChangedEvent = static_cast<DatasetDataChangedEvent*>(dataEvent);
-
-            // Get the GUI name of the points dataset of which the data changed and print to the console
-            qDebug() << dataChangedEvent->getDataset()->getGuiName() << "data changed";
-
-            break;
-        }
-
-        // Points dataset data was removed
-        case EventType::DatasetRemoved:
-        {
-            // Cast the data event to a data removed event
-            const auto dataRemovedEvent = static_cast<DatasetRemovedEvent*>(dataEvent);
-
-            // Get the GUI name of the removed points dataset and print to the console
-            qDebug() << dataRemovedEvent->getDataset()->getGuiName() << "was removed";
-
-            break;
-        }
-
-        // Points dataset selection has changed
-        case EventType::DatasetDataSelectionChanged:
-        {
-            // Cast the data event to a data selection changed event
-            const auto dataSelectionChangedEvent = static_cast<DatasetDataSelectionChangedEvent*>(dataEvent);
-
-            // Get points dataset
-            const auto& changedDataSet = dataSelectionChangedEvent->getDataset();
-
-            // Get the selection set that changed
-            const auto selectionSet = changedDataSet->getSelection<Points>();
-
-            // Print to the console
-            qDebug() << changedDataSet->getGuiName() << "selection has changed";
-
-            break;
-        }
-
-        default:
-            break;
-    }
+    return mv::gui::createPluginIcon("UMAP", color);
 }
 
 AnalysisPlugin* UMAPAnalysisPluginFactory::produce()
 {
-    // Return a new instance of the UMAP analysis plugin
     return new UMAPAnalysisPlugin(this);
 }
 
@@ -278,7 +278,7 @@ mv::gui::PluginTriggerActions UMAPAnalysisPluginFactory::getPluginTriggerActions
 
     if (numberOfDatasets >= 1 && PluginFactory::areAllDatasetsOfTheSameType(datasets, PointType)) {
         auto pluginTriggerAction = new PluginTriggerAction(const_cast<UMAPAnalysisPluginFactory*>(this), this, "UMAP Analysis", "Perform an UMAP Analysis", getIcon(), [this, getPluginInstance, datasets](PluginTriggerAction& pluginTriggerAction) -> void {
-            for (auto dataset : datasets)
+            for (const auto& dataset : datasets)
                 getPluginInstance(dataset);
             });
 

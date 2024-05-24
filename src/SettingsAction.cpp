@@ -2,9 +2,10 @@
 
 SettingsAction::SettingsAction(QObject* parent) :
     GroupAction(parent, "SettingsAction", true),
-    _currentIterationAction(this, "Value"),
+    _currentIterationAction(this, "Iterations"),
     _numberOfIterationsAction(this, "Number of iterations", 0, 10000, 500),
-    _startAnalysisAction(this, "Start analysis")
+    _startAnalysisAction(this, "Start analysis"),
+    _updateAction(this, "Start analysis")
 {
     setText("UMAP Settings");
 
@@ -12,9 +13,10 @@ SettingsAction::SettingsAction(QObject* parent) :
 
     _currentIterationAction.setToolTip("Current iteration index");
     _numberOfIterationsAction.setToolTip("Number of iterations to compute");
-    _startAnalysisAction.setToolTip("Start the analysis");
+    _updateAction.setToolTip("Update");
 
     addAction(&_currentIterationAction);
     addAction(&_numberOfIterationsAction);
     addAction(&_startAnalysisAction);
+    addAction(&_updateAction);
 }
