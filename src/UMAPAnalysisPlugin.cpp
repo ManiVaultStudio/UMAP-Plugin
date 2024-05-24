@@ -145,67 +145,61 @@ void UMAPAnalysisPlugin::init()
 
         updateProgress(numberOfIterations);
 
+        qDebug() << "Total iterations: " << _umapStatus->epoch() << " " << _umapStatus->num_epochs();
+
         // Flag the analysis task as finished
         datasetTask.setFinished();
         };
     
-    //auto continueUMAP = [this, updatePoints, updateCurrentIterationAction, inputPoints]() {
-    //    auto& datasetTask = getOutputDataset()->getTask();
-    //    datasetTask.setName("UMAP analysis");
-    //    datasetTask.setRunning();
-    //    datasetTask.setProgress(0.0f);
-    //    datasetTask.setProgressDescription("Computing...");
+    auto continueUMAP = [this, updatePoints, updateCurrentIterationAction, inputPoints]() {
+        auto& datasetTask = getOutputDataset()->getTask();
+        datasetTask.setName("UMAP analysis");
+        datasetTask.setRunning();
+        datasetTask.setProgress(0.0f);
+        datasetTask.setProgressDescription("Computing...");
 
-    //    const auto numberOfIterations = _settingsAction.getNumberOfIterationsAction().getValue();
-    //    const auto currentIterations = _settingsAction.getCurrentIterationAction().getString().toInt();
+        const auto numberOfIterations = _settingsAction.getNumberOfIterationsAction().getValue();
+        const auto currentIterations = _settingsAction.getCurrentIterationAction().getString().toInt();
 
-    //    _umap.
+        const scalar_t* embedding = _umapStatus->embedding();
 
-    //    auto status = UMAP::Status(
-    //        umappp::similarities_to_epochs(const NeighborList<Float>&p, int num_epochs, UMAP::Defaults::negative_sample_rate),
-    //        seed,
-    //        std::move(pcopy),
-    //        _outDimensions,
-    //        embedding
-    //    );
+        // Copy from umap worker and publish to core
+        auto updateProgress = [this, &embedding, updatePoints, updateCurrentIterationAction](int iteration) {
 
-    //    const scalar_t* embedding = _umapStatus->embedding();
+            const auto nElmens = _umapStatus->nobs() * _umapStatus->ndim();
 
-    //    // Copy from umap worker and publish to core
-    //    auto updateProgress = [this, &embedding, updatePoints, updateCurrentIterationAction](int iteration) {
+            for (size_t i = 0; i < nElmens; i++)
+                _embedding[i] = *(embedding + i);
 
-    //        const auto nElmens = _umapStatus->nobs() * _umapStatus->ndim();
+            updatePoints();
+            updateCurrentIterationAction(iteration + 1);
 
-    //        for (size_t i = 0; i < nElmens; i++)
-    //            _embedding[i] = *(embedding + i);
+            qDebug() << "Iteration " << iteration;
+            };
 
-    //        updatePoints();
-    //        updateCurrentIterationAction(iteration + 1);
+        datasetTask.setProgressDescription("Computing...");
 
-    //        qDebug() << "Iteration " << iteration;
-    //        };
+        // Iteratively update UMAP embedding
+        for (int i = currentIterations; i < numberOfIterations; i++)
+        {
+            datasetTask.setProgress(i / static_cast<float>(numberOfIterations));
+            datasetTask.setProgressDescription(QString("Computing iteration %1/%2").arg(QString::number(i), QString::number(numberOfIterations)));
 
-    //    datasetTask.setProgressDescription("Computing...");
+            _umapStatus->run(i);
 
-    //    // Iteratively update UMAP embedding
-    //    for (int i = currentIterations; i < numberOfIterations; i++)
-    //    {
-    //        datasetTask.setProgress(i / static_cast<float>(numberOfIterations));
-    //        datasetTask.setProgressDescription(QString("Computing iteration %1/%2").arg(QString::number(i), QString::number(numberOfIterations)));
+            if (i % 10 == 0)
+                updateProgress(i);
 
-    //        _umapStatus->run(i);
+            QCoreApplication::processEvents();
+        }
 
-    //        if (i % 10 == 0)
-    //            updateProgress(i);
+        updateProgress(numberOfIterations);
 
-    //        QCoreApplication::processEvents();
-    //    }
+        qDebug() << "Total iterations (cont.): " << _umapStatus->epoch() << " " << _umapStatus->num_epochs();
 
-    //    updateProgress(numberOfIterations);
-
-    //    // Flag the analysis task as finished
-    //    datasetTask.setFinished();
-    //    };
+        // Flag the analysis task as finished
+        datasetTask.setFinished();
+        };
 
 
     // Start the analysis when the user clicks the start analysis push button
@@ -227,23 +221,23 @@ void UMAPAnalysisPlugin::init()
         watcher->setFuture(future);
         });
 
-    //connect(&_settingsAction.getUpdateAction(), &mv::gui::TriggerAction::triggered, this, [this, continueUMAP] {
+    connect(&_settingsAction.getUpdateAction(), &mv::gui::TriggerAction::triggered, this, [this, continueUMAP] {
 
-    //    // Disable actions during analysis
-    //    _settingsAction.getNumberOfIterationsAction().setEnabled(false);
+        // Disable actions during analysis
+        _settingsAction.getNumberOfIterationsAction().setEnabled(false);
 
-    //    // Run UMAP in another thread
-    //    QFuture<void> future = QtConcurrent::run(continueUMAP);
-    //    QFutureWatcher<void>* watcher = new QFutureWatcher<void>();
+        // Run UMAP in another thread
+        QFuture<void> future = QtConcurrent::run(continueUMAP);
+        QFutureWatcher<void>* watcher = new QFutureWatcher<void>();
 
-    //    // Enabled actions again once computation is done
-    //    connect(watcher, &QFutureWatcher<int>::finished, [this, watcher]() {
-    //       _settingsAction.getNumberOfIterationsAction().setEnabled(true);
-    //        watcher->deleteLater();
-    //        });
+        // Enabled actions again once computation is done
+        connect(watcher, &QFutureWatcher<int>::finished, [this, watcher]() {
+           _settingsAction.getNumberOfIterationsAction().setEnabled(true);
+            watcher->deleteLater();
+            });
 
-    //    watcher->setFuture(future);
-    //    });
+        watcher->setFuture(future);
+        });
 
     // Initialize current iteration action
     updateCurrentIterationAction();
