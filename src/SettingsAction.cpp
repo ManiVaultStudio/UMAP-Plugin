@@ -41,4 +41,5 @@ ButtonsGroupAction::ButtonsGroupAction(QObject* parent) :
     _stopComputationAction.setToolTip("Stop");
 
     _continueComputationAction.setEnabled(false);
+    _stopComputationAction.setEnabled(false);
 }

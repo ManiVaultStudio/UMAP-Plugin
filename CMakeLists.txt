@@ -31,9 +31,6 @@ include(FetchContent)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(CMakeCheckSetAVX)
 
-#include(CPM)
-#include(CMakeCPMDependencies)
-
 # -----------------------------------------------------------------------------
 # Set install directory
 # -----------------------------------------------------------------------------

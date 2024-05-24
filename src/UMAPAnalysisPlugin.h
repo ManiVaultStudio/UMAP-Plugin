@@ -23,30 +23,20 @@ using namespace mv;
  *
  * UMAP is a neighborhood-based dimensionality reduction similar to t-SNE
  *
- * @authors T. Höllt
+ * @authors T. Höllt, A.Vieth
  */
 class UMAPAnalysisPlugin : public AnalysisPlugin
 {
 Q_OBJECT
 
 public:
-
     using scalar_t      = float;
     using UMAP          = umappp::Umap<scalar_t>;
     using UMAP_STATUS   = std::unique_ptr<UMAP::Status>;
 
-    /**
-     * Constructor
-     * @param factory Pointer to the plugin factory
-     */
     UMAPAnalysisPlugin(const PluginFactory* factory);
+    ~UMAPAnalysisPlugin() override = default;
 
-    /** Destructor */
-    ~UMAPAnalysisPlugin() override;
-
-    /**
-     * This function is called by ManiVault's core after the analysis plugin has been created
-    */
     void init() override;
 
 private:
@@ -72,10 +62,7 @@ class UMAPAnalysisPluginFactory : public AnalysisPluginFactory
 
 public:
 
-    /** Default constructor */
     UMAPAnalysisPluginFactory() {}
-
-    /** Destructor */
     ~UMAPAnalysisPluginFactory() override {}
 
     QIcon getIcon(const QColor& color = Qt::black) const override;

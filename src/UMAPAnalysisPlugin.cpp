@@ -36,10 +36,6 @@ UMAPAnalysisPlugin::UMAPAnalysisPlugin(const PluginFactory* factory) :
 {
 }
 
-UMAPAnalysisPlugin::~UMAPAnalysisPlugin()
-{
-}
-
 void UMAPAnalysisPlugin::init()
 {
     // Create UMAP output dataset (a points dataset which is derived from the input points dataset) and set the output dataset
@@ -54,7 +50,7 @@ void UMAPAnalysisPlugin::init()
         events().notifyDatasetDataChanged(_outputPoints);
     };
 
-    _embedding.resize(inputPoints->getNumPoints() * _outDimensions);
+    _embedding.resize(inputPoints->getNumPoints() * static_cast<size_t>(_outDimensions));
     updatePoints();
 
     // Set the dimension names as visible in the GUI
@@ -159,7 +155,7 @@ void UMAPAnalysisPlugin::init()
 
         updateEmbeddingAndUI(iter);
 
-        qDebug() << "Total iterations: " << _umapStatus->epoch() + 1 ;
+        qDebug() << "UMAP: total iterations: " << _umapStatus->epoch() + 1 ;
 
         // Flag the analysis task as finished
         datasetTask.setFinished();
@@ -214,7 +210,7 @@ void UMAPAnalysisPlugin::init()
 
         updateEmbeddingAndUI(iter);
 
-        qDebug() << "Total iterations: " << _umapStatus->epoch() + 1;
+        qDebug() << "UMAP: total iterations: " << _umapStatus->epoch() + 1;
 
         // Flag the analysis task as finished
         datasetTask.setFinished();
