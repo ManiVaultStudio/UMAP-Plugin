@@ -66,7 +66,7 @@ void UMAPAnalysisPlugin::init()
     _outputPoints->_infoAction->collapse();
 
     // Update current iteration action
-    const auto updateCurrentIterationAction = [this](const std::int32_t& currentIteration = 0) {
+    auto updateCurrentIterationAction = [this](int currentIteration) {
         _settingsAction.getCurrentIterationAction().setString(QString::number(currentIteration));
     };
 
@@ -115,35 +115,32 @@ void UMAPAnalysisPlugin::init()
         knnAnnoy searcher(nDim, numPoints, data.data(), /* ntrees = */ 20);
         _umapStatus = std::make_unique<UMAP::Status>(_umap.initialize(&searcher, _outDimensions, embedding.data()));
 
-        // Copy from umap worker and publish to core
-        auto updateProgress = [this, &embedding, updatePoints, updateCurrentIterationAction](int iteration) {
-
-            for (size_t i = 0; i < embedding.size(); i++)
-                _embedding[i] = embedding[i];
-
-            updatePoints();
-            updateCurrentIterationAction(iteration + 1);
-
-            qDebug() << "Iteration " << iteration;
-            };
-
         datasetTask.setProgressDescription("Computing...");
 
+        auto updateEmbeddingAndUI = [this, updatePoints, updateCurrentIterationAction](int iter, const std::vector<scalar_t>& emb) {
+            // Copy from umap worker and publish to core
+            for (size_t i = 0; i < emb.size(); i++)
+                _embedding[i] = emb[i];
+
+            updatePoints();
+            updateCurrentIterationAction(iter);
+        };
+
         // Iteratively update UMAP embedding
-        for (int i = 1; i < numberOfIterations; i++)
+        for (int iter = 1; iter < numberOfIterations; iter++)
         {
-            datasetTask.setProgress(i / static_cast<float>(numberOfIterations));
-            datasetTask.setProgressDescription(QString("Computing iteration %1/%2").arg(QString::number(i), QString::number(numberOfIterations)));
+            datasetTask.setProgress(iter / static_cast<float>(numberOfIterations));
+            datasetTask.setProgressDescription(QString("Computing iteration %1/%2").arg(QString::number(iter), QString::number(numberOfIterations)));
 
-            _umapStatus->run(i);
+            _umapStatus->run(iter);
 
-            if (i % 10 == 0)
-                updateProgress(i);
+            if (iter % 10 == 0)
+                updateEmbeddingAndUI(iter, embedding);
 
             QCoreApplication::processEvents();
         }
 
-        updateProgress(numberOfIterations);
+        updateEmbeddingAndUI(numberOfIterations, embedding);
 
         qDebug() << "Total iterations: " << _umapStatus->epoch() << " " << _umapStatus->num_epochs();
 
@@ -151,7 +148,7 @@ void UMAPAnalysisPlugin::init()
         datasetTask.setFinished();
         };
     
-    auto continueUMAP = [this, updatePoints, updateCurrentIterationAction, inputPoints]() {
+    auto continueUMAP = [this, updatePoints, updateCurrentIterationAction]() {
         auto& datasetTask = getOutputDataset()->getTask();
         datasetTask.setName("UMAP analysis");
         datasetTask.setRunning();
@@ -161,39 +158,34 @@ void UMAPAnalysisPlugin::init()
         const auto numberOfIterations = _settingsAction.getNumberOfIterationsAction().getValue();
         const auto currentIterations = _settingsAction.getCurrentIterationAction().getString().toInt();
 
-        const scalar_t* embedding = _umapStatus->embedding();
+        auto updateEmbeddingAndUI = [this, updatePoints, updateCurrentIterationAction](int iter) {
+            const scalar_t* embedding = _umapStatus->embedding();
 
-        // Copy from umap worker and publish to core
-        auto updateProgress = [this, &embedding, updatePoints, updateCurrentIterationAction](int iteration) {
-
-            const auto nElmens = _umapStatus->nobs() * _umapStatus->ndim();
-
-            for (size_t i = 0; i < nElmens; i++)
+            // Copy from umap worker and publish to core
+            for (size_t i = 0; i < _embedding.size(); i++)
                 _embedding[i] = *(embedding + i);
 
             updatePoints();
-            updateCurrentIterationAction(iteration + 1);
-
-            qDebug() << "Iteration " << iteration;
+            updateCurrentIterationAction(iter);
             };
 
         datasetTask.setProgressDescription("Computing...");
 
         // Iteratively update UMAP embedding
-        for (int i = currentIterations; i < numberOfIterations; i++)
+        for (int iter = currentIterations; iter < numberOfIterations; iter++)
         {
-            datasetTask.setProgress(i / static_cast<float>(numberOfIterations));
-            datasetTask.setProgressDescription(QString("Computing iteration %1/%2").arg(QString::number(i), QString::number(numberOfIterations)));
+            datasetTask.setProgress(iter / static_cast<float>(numberOfIterations));
+            datasetTask.setProgressDescription(QString("Computing iteration %1/%2").arg(QString::number(iter), QString::number(numberOfIterations)));
 
-            _umapStatus->run(i);
+            _umapStatus->run(iter);
 
-            if (i % 10 == 0)
-                updateProgress(i);
+            if (iter % 10 == 0)
+                updateEmbeddingAndUI(iter);
 
             QCoreApplication::processEvents();
         }
 
-        updateProgress(numberOfIterations);
+        updateEmbeddingAndUI(numberOfIterations);
 
         qDebug() << "Total iterations (cont.): " << _umapStatus->epoch() << " " << _umapStatus->num_epochs();
 
@@ -240,7 +232,7 @@ void UMAPAnalysisPlugin::init()
         });
 
     // Initialize current iteration action
-    updateCurrentIterationAction();
+    updateCurrentIterationAction(0);
 }
 
 
