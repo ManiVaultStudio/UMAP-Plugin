@@ -15,7 +15,6 @@
 #include <QtConcurrent>
 #include <QtCore>
 
-#include <limits>
 #include <thread>
 
 Q_PLUGIN_METADATA(IID "studio.manivault.UMAPAnalysisPlugin")
@@ -101,14 +100,14 @@ void UMAPAnalysisPlugin::init()
         unsigned int nThreads = std::thread::hardware_concurrency();
         if (nThreads == 0)
             nThreads = 1;
-        bool useThredas = nThreads > 1;
+        bool useThreads = nThreads > 1;
 
         const int numNeighbors = 20;
 
         _umap = UMAP();
         _umap.set_num_neighbors(numNeighbors);
-        _umap.set_num_epochs(std::numeric_limits<int>::max());
-        _umap.set_parallel_optimization(useThredas);
+        _umap.set_num_epochs(numberOfIterations);
+        _umap.set_parallel_optimization(useThreads);
         _umap.set_num_threads(nThreads);
 
         int nDim = numEnabledDimensions;
@@ -189,6 +188,8 @@ void UMAPAnalysisPlugin::init()
             };
 
         datasetTask.setProgressDescription("Computing...");
+
+        _umap.set_num_epochs(numberOfIterations);
 
         int iter = currentIterations + 1;
         // Iteratively update UMAP embedding
