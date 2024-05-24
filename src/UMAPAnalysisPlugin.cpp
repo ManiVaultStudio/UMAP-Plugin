@@ -259,7 +259,7 @@ void UMAPAnalysisPlugin::init()
         // Enabled actions again once computation is done
         connect(watcher, &QFutureWatcher<int>::finished, [this, watcher]() {
            _settingsAction.getNumberOfIterationsAction().setEnabled(true);
-           _settingsAction.getStartAction().setEnabled(true);
+           //_settingsAction.getStartAction().setEnabled(true);
            _settingsAction.getContinueAction().setEnabled(true);
            _settingsAction.getStopAction().setEnabled(false);
            watcher->deleteLater();
