@@ -10,8 +10,6 @@
 #include "umappp/Umap.hpp"
 #undef UMAPPP_CUSTOM_NEIGHBORS
 
-#include <memory>
-
 using namespace mv::plugin;
 using namespace mv;
 
@@ -32,7 +30,6 @@ Q_OBJECT
 public:
     using scalar_t      = float;
     using UMAP          = umappp::Umap<scalar_t>;
-    using UMAP_STATUS   = std::unique_ptr<UMAP::Status>;
 
     UMAPAnalysisPlugin(const PluginFactory* factory);
     ~UMAPAnalysisPlugin() override = default;
@@ -46,7 +43,6 @@ private:
     Dataset<Points>         _outputPoints;
     
     UMAP                    _umap;
-    UMAP_STATUS             _umapStatus;
     bool                    _shouldStop;
 };
 

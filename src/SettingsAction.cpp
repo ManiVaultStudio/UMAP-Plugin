@@ -27,19 +27,15 @@ SettingsAction::SettingsAction(QObject* parent) :
 ButtonsGroupAction::ButtonsGroupAction(QObject* parent) :
     HorizontalGroupAction(parent, "UmapComputationAction"),
     _startComputationAction(this, "Start"),
-    _continueComputationAction(this, "Continue"),
     _stopComputationAction(this, "Stop")
 {
     setText("Computation");
 
     addAction(&_startComputationAction);
-    addAction(&_continueComputationAction);
     addAction(&_stopComputationAction);
 
     _startComputationAction.setToolTip("Start computation");
-    _continueComputationAction.setToolTip("Continue");
     _stopComputationAction.setToolTip("Stop");
 
-    _continueComputationAction.setEnabled(false);
     _stopComputationAction.setEnabled(false);
 }

@@ -24,9 +24,9 @@ public:
      */
     ButtonsGroupAction(QObject* parent);
 
-    void changeEnabled(bool cont, bool stop)
+    void changeEnabled(bool start, bool stop)
     {
-        _continueComputationAction.setEnabled(cont);
+        _startComputationAction.setEnabled(start);
         _stopComputationAction.setEnabled(stop);
     }
 
@@ -43,12 +43,10 @@ public:
 public: // Action getters
 
     TriggerAction& getStartComputationAction() { return _startComputationAction; }
-    TriggerAction& getContinueComputationAction() { return _continueComputationAction; }
     TriggerAction& getStopComputationAction() { return _stopComputationAction; }
 
 protected:
     TriggerAction   _startComputationAction;        /** Start computation action */
-    TriggerAction   _continueComputationAction;     /** Continue computation action */
     TriggerAction   _stopComputationAction;         /** Stop computation action */
 };
 
@@ -74,7 +72,6 @@ public: // Action getters
     IntegralAction& getNumberOfIterationsAction() { return _numberOfIterationsAction; }
     ButtonsGroupAction& getStartStopAction() { return _startStopActions; }
     TriggerAction& getStartAction() { return _startStopActions.getStartComputationAction(); }
-    TriggerAction& getContinueAction() { return _startStopActions.getContinueComputationAction(); }
     TriggerAction& getStopAction() { return _startStopActions.getStopComputationAction(); }
 
 public:

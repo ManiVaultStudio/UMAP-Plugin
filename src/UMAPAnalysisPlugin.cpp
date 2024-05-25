@@ -30,7 +30,6 @@ UMAPAnalysisPlugin::UMAPAnalysisPlugin(const PluginFactory* factory) :
     _outDimensions(2),
     _outputPoints(nullptr),
     _umap(),
-    _umapStatus(nullptr),
     _shouldStop(false)
 {
 }
@@ -68,6 +67,9 @@ void UMAPAnalysisPlugin::init()
     auto updateCurrentIterationAction = [this](int currentIteration) {
         _settingsAction.getCurrentIterationAction().setString(QString::number(currentIteration));
     };
+
+    // Compute suggested number of iterations
+    _settingsAction.getNumberOfIterationsAction().setValue(umappp::choose_num_epochs(-1, inputPoints->getNumPoints()));
 
     auto computeUMAP = [this, updatePoints, updateCurrentIterationAction, inputPoints]() {
         auto& datasetTask = getOutputDataset()->getTask();
@@ -115,7 +117,7 @@ void UMAPAnalysisPlugin::init()
         qDebug() << "UMAP: compute knn: " << numNeighbors << " neighbors";
 
         knnAnnoy searcher(nDim, numPoints, data.data(), /* ntrees = */ 20);
-        _umapStatus = std::make_unique<UMAP::Status>(_umap.initialize(&searcher, _outDimensions, _embedding.data()));
+        auto status = std::make_unique<UMAP::Status>(_umap.initialize(&searcher, _outDimensions, _embedding.data()));
 
         auto updateEmbeddingAndUI = [this, updatePoints, updateCurrentIterationAction](int iter) {
             updatePoints();
@@ -144,7 +146,7 @@ void UMAPAnalysisPlugin::init()
             datasetTask.setProgress(iter / static_cast<float>(numberOfIterations));
             datasetTask.setProgressDescription(QString("Computing iteration %1/%2").arg(QString::number(iter), QString::number(numberOfIterations)));
 
-            _umapStatus->run(iter);
+            status->run(iter);
 
             if (iter % 10 == 0)
                 updateEmbeddingAndUI(iter);
@@ -154,79 +156,19 @@ void UMAPAnalysisPlugin::init()
 
         updateEmbeddingAndUI(iter);
 
-        qDebug() << "UMAP: total iterations: " << _umapStatus->epoch() + 1 ;
+        qDebug() << "UMAP: total iterations: " << status->epoch() + 1 ;
 
         // Flag the analysis task as finished
         datasetTask.setFinished();
         _shouldStop = false;
         };
     
-    auto continueUMAP = [this, updatePoints, updateCurrentIterationAction]() {
-
-        const auto numberOfIterations = _settingsAction.getNumberOfIterationsAction().getValue();
-        const auto currentIterations = _settingsAction.getCurrentIterationAction().getString().toInt();
-
-        const auto newIterations = numberOfIterations - currentIterations;
-
-        if (newIterations < 0)
-        {
-            _shouldStop = false;
-            return;
-        }
-
-        auto& datasetTask = getOutputDataset()->getTask();
-        datasetTask.setName("UMAP analysis");
-        datasetTask.setRunning();
-        datasetTask.setProgress(0.0f);
-        datasetTask.setProgressDescription("Computing...");
-
-        qDebug() << "UMAP: start gradient descent: " << newIterations << " iterations";
-
-        auto updateEmbeddingAndUI = [this, updatePoints, updateCurrentIterationAction](int iter) {
-            updatePoints();
-            updateCurrentIterationAction(iter);
-            };
-
-        datasetTask.setProgressDescription("Computing...");
-
-        _umap.set_num_epochs(numberOfIterations);
-
-        int iter = currentIterations + 1;
-        // Iteratively update UMAP embedding
-        for (; iter < numberOfIterations; iter++)
-        {
-            if (_shouldStop)
-                break;
-
-            datasetTask.setProgress(iter / static_cast<float>(numberOfIterations));
-            datasetTask.setProgressDescription(QString("Computing iteration %1/%2").arg(QString::number(iter), QString::number(numberOfIterations)));
-
-            _umapStatus->run(iter);
-
-            if (iter % 10 == 0)
-                updateEmbeddingAndUI(iter);
-
-            QCoreApplication::processEvents();
-        }
-
-        updateEmbeddingAndUI(iter);
-
-        qDebug() << "UMAP: total iterations: " << _umapStatus->epoch() + 1;
-
-        // Flag the analysis task as finished
-        datasetTask.setFinished();
-        _shouldStop = false;
-        };
-
-
     // Start the analysis when the user clicks the start analysis push button
     connect(&_settingsAction.getStartAction(), &mv::gui::TriggerAction::triggered, this, [this, computeUMAP] {
 
         // Disable actions during analysis
         _settingsAction.getNumberOfIterationsAction().setEnabled(false);
-        _settingsAction.getStartAction().setEnabled(false);
-        _settingsAction.getContinueAction().setEnabled(false);
-        _settingsAction.getStopAction().setEnabled(true);
+        _settingsAction.getStartStopAction().setStarted();
 
         // Run UMAP in another thread
         QFuture<void> future = QtConcurrent::run(computeUMAP);
@@ -235,33 +177,7 @@ void UMAPAnalysisPlugin::init()
         // Enabled actions again once computation is done
         connect(watcher, &QFutureWatcher<int>::finished, [this, watcher]() {
            _settingsAction.getNumberOfIterationsAction().setEnabled(true);
-           //_settingsAction.getStartAction().setEnabled(true);
-           _settingsAction.getContinueAction().setEnabled(true);
-           _settingsAction.getStopAction().setEnabled(false);
-           watcher->deleteLater();
-            });
-
-        watcher->setFuture(future);
-        });
-
-    connect(&_settingsAction.getContinueAction(), &mv::gui::TriggerAction::triggered, this, [this, continueUMAP] {
-
-        // Disable actions during analysis
-        _settingsAction.getNumberOfIterationsAction().setEnabled(false);
-        _settingsAction.getStartAction().setEnabled(false);
-        _settingsAction.getContinueAction().setEnabled(false);
-        _settingsAction.getStopAction().setEnabled(true);
-
-        // Run UMAP in another thread
-        QFuture<void> future = QtConcurrent::run(continueUMAP);
-        QFutureWatcher<void>* watcher = new QFutureWatcher<void>();
-
-        // Enabled actions again once computation is done
-        connect(watcher, &QFutureWatcher<int>::finished, [this, watcher]() {
-           _settingsAction.getNumberOfIterationsAction().setEnabled(true);
-           //_settingsAction.getStartAction().setEnabled(true);
-           _settingsAction.getContinueAction().setEnabled(true);
-           _settingsAction.getStopAction().setEnabled(false);
+           _settingsAction.getStartStopAction().setFinished();
            watcher->deleteLater();
             });
 
