@@ -7,6 +7,7 @@
 
 #pragma warning(disable:4477)       // annoy internal: print formatting warnings
 #include "knncolle/knncolle.hpp"
+#include "knncolle/Hnsw/Hnsw.hpp"
 #pragma warning(default:4477)
 
 #include <QDebug>
@@ -15,6 +16,7 @@
 #include <QtConcurrent>
 #include <QtCore>
 
+#include <memory>
 #include <thread>
 
 Q_PLUGIN_METADATA(IID "studio.manivault.UMAPAnalysisPlugin")
@@ -22,16 +24,46 @@ Q_PLUGIN_METADATA(IID "studio.manivault.UMAPAnalysisPlugin")
 using namespace mv;
 using namespace mv::plugin;
 
-using knnAnnoy = knncolle::Annoy<Annoy::Euclidean, std::int32_t, UMAPAnalysisPlugin::scalar_t, UMAPAnalysisPlugin::scalar_t, std::int32_t, UMAPAnalysisPlugin::scalar_t>;
+namespace knncolle::hnsw_distances
+{
+    class InnerProduct : public hnswlib::InnerProductSpace {
+    public:
+        InnerProduct(size_t ndim) : hnswlib::InnerProductSpace(ndim) {}
+
+        static float normalize(float raw) {
+            return raw;
+        }
+    };
+}
+
+using knnAnnoyEuclidean = knncolle::Annoy<Annoy::Euclidean, int, UMAPAnalysisPlugin::scalar_t, UMAPAnalysisPlugin::scalar_t, int32_t, UMAPAnalysisPlugin::scalar_t>;
+using knnAnnoyAngular   = knncolle::Annoy<Annoy::Angular, int, UMAPAnalysisPlugin::scalar_t, UMAPAnalysisPlugin::scalar_t, int32_t, UMAPAnalysisPlugin::scalar_t>;
+using knnAnnoyDot       = knncolle::Annoy<Annoy::DotProduct, int, UMAPAnalysisPlugin::scalar_t, UMAPAnalysisPlugin::scalar_t, int32_t, UMAPAnalysisPlugin::scalar_t>;
+
+using knnHnswEuclidean  = knncolle::Hnsw<knncolle::hnsw_distances::Euclidean, int, UMAPAnalysisPlugin::scalar_t, UMAPAnalysisPlugin::scalar_t>;
+using knnHnswDot        = knncolle::Hnsw<knncolle::hnsw_distances::InnerProduct, int, UMAPAnalysisPlugin::scalar_t, UMAPAnalysisPlugin::scalar_t>;
 
 UMAPAnalysisPlugin::UMAPAnalysisPlugin(const PluginFactory* factory) :
     AnalysisPlugin(factory),
-    _settingsAction(),
+    _settingsAction(this),
+    _knnSettingsAction(this),
     _outDimensions(2),
     _outputPoints(nullptr),
     _umap(),
     _shouldStop(false)
 {
+}
+
+static void normalizData(std::vector<UMAPAnalysisPlugin::scalar_t>& data) {
+    float norm = 0.0f;
+    for (const auto& val: data)
+        norm += val * val;
+
+    norm = 1.0f / (sqrtf(norm) + 1e-30f);
+
+#pragma omp parallel
+    for (std::int64_t i = 0; i < data.size(); i++)
+        data[i] *= norm;
 }
 
 void UMAPAnalysisPlugin::init()
@@ -55,9 +87,9 @@ void UMAPAnalysisPlugin::init()
     _outputPoints->setDimensionNames({ "UMAP x", "UMAP y" });
     events().notifyDatasetDataDimensionsChanged(_outputPoints);
 
-    // Inject the settings action in the output points dataset 
-    // By doing so, the settings user interface will be accessible though the data properties widget
+    // Add settings to UI
     _outputPoints->addAction(_settingsAction);
+    _outputPoints->addAction(_knnSettingsAction);
     
     // Automatically focus on the UMAP data set
     _outputPoints->getDataHierarchyItem().select();
@@ -104,7 +136,9 @@ void UMAPAnalysisPlugin::init()
             nThreads = 1;
         bool useThreads = nThreads > 1;
 
-        const int numNeighbors = 20;
+        const KnnParameters knnParams = _knnSettingsAction.getKnnParameters();
+
+        const int numNeighbors = knnParams.getK();
 
         _umap = UMAP();
         _umap.set_num_neighbors(numNeighbors);
@@ -112,12 +146,39 @@ void UMAPAnalysisPlugin::init()
         _umap.set_parallel_optimization(useThreads);
         _umap.set_num_threads(nThreads);
 
+        // default is spectral
+        if(_settingsAction.getInitializeAction().getCurrentText() == "Random")
+            _umap.set_initialize(umappp::InitMethod::RANDOM);
+
         int nDim = numEnabledDimensions;
 
         qDebug() << "UMAP: compute knn: " << numNeighbors << " neighbors";
 
-        knnAnnoy searcher(nDim, numPoints, data.data(), /* ntrees = */ 20);
-        auto status = std::make_unique<UMAP::Status>(_umap.initialize(&searcher, _outDimensions, _embedding.data()));
+        std::unique_ptr<knncolle::Base<int, UMAPAnalysisPlugin::scalar_t, UMAPAnalysisPlugin::scalar_t>> searcher;
+
+        if (knnParams.getKnnAlgorithm() == KnnLibrary::ANNOY) {
+
+            if(knnParams.getKnnDistanceMetric() == KnnMetric::COSINE)
+                searcher = std::make_unique<knnAnnoyAngular>(nDim, numPoints, data.data(), knnParams.getAnnoyNumTrees(), knnParams.getAnnoyNumChecks());
+            else if (knnParams.getKnnDistanceMetric() == KnnMetric::DOT)
+                searcher = std::make_unique<knnAnnoyDot>(nDim, numPoints, data.data(), knnParams.getAnnoyNumTrees(), knnParams.getAnnoyNumChecks());
+            else
+                searcher = std::make_unique<knnAnnoyEuclidean>(nDim, numPoints, data.data(), knnParams.getAnnoyNumTrees(), knnParams.getAnnoyNumChecks());
+        }
+        else // knnParams.getKnnAlgorithm() == KnnLibrary::HNSW
+        {
+            if (knnParams.getKnnDistanceMetric() == KnnMetric::COSINE)
+            {
+                normalizData(data);
+                searcher = std::make_unique<knnHnswDot>(nDim, numPoints, data.data(), knnParams.getHNSWm(), knnParams.getHNSWef(), knnParams.getHNSWef());
+            }
+            else if (knnParams.getKnnDistanceMetric() == KnnMetric::DOT)
+                searcher = std::make_unique<knnHnswDot>(nDim, numPoints, data.data(), knnParams.getHNSWm(), knnParams.getHNSWef(), knnParams.getHNSWef());
+            else
+                searcher = std::make_unique<knnHnswEuclidean>(nDim, numPoints, data.data(), knnParams.getHNSWm(), knnParams.getHNSWef(), knnParams.getHNSWef());
+        }
+
+        auto status = std::make_unique<UMAP::Status>(_umap.initialize(searcher.get(), _outDimensions, _embedding.data()));
 
         auto updateEmbeddingAndUI = [this, updatePoints, updateCurrentIterationAction](int iter) {
             updatePoints();

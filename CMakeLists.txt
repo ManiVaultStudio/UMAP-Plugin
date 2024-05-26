@@ -64,23 +64,18 @@ set(UMAPANALYSIS_SOURCES
     src/UMAPAnalysisPlugin.cpp
     src/SettingsAction.h
     src/SettingsAction.cpp
+    src/KnnSettingsAction.h
+    src/KnnSettingsAction.cpp
     src/UMAPAnalysisPlugin.json
 )
 
-set(PLUGIN_MOC_HEADERS
-    src/UMAPAnalysisPlugin.h
-)
-
-source_group( Plugin FILES ${UMAPANALYSIS_SOURCES})
+source_group(Plugin FILES ${UMAPANALYSIS_SOURCES})
 
 # -----------------------------------------------------------------------------
 # CMake Target
 # -----------------------------------------------------------------------------
 # Create dynamic library for the plugin
 add_library(${UMAPANALYSIS} SHARED ${UMAPANALYSIS_SOURCES})
-
-qt_wrap_cpp(UMAPANALYSIS_MOC ${PLUGIN_MOC_HEADERS} TARGET ${UMAPANALYSIS})
-target_sources(${UMAPANALYSIS} PRIVATE ${UMAPANALYSIS_MOC})
 
 # -----------------------------------------------------------------------------
 # Target include directories
