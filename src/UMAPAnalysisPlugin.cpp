@@ -7,7 +7,6 @@
 
 #pragma warning(disable:4477)       // annoy internal: print formatting warnings
 #include <annoy/annoylib.h>
-#include <guiddef.h>
 #include <hnswlib/space_ip.h>
 #include <knncolle/Annoy/Annoy.hpp>
 #include <knncolle/utils/Base.hpp>
