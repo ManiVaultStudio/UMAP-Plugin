@@ -16,12 +16,7 @@
 #pragma warning(default:4477)
 
 #include <QDebug>
-#include <QFuture>
-#include <QFutureWatcher>
-#include <QtConcurrent>
 #include <QtCore>
-
-#include <memory>
 
 #ifdef USE_OPENMP
 #include <omp.h>
@@ -44,27 +39,16 @@ namespace knncolle::hnsw_distances
     };
 }
 
-using knnAnnoyEuclidean = knncolle::Annoy<Annoy::Euclidean, int, UMAPAnalysisPlugin::scalar_t, UMAPAnalysisPlugin::scalar_t, int32_t, UMAPAnalysisPlugin::scalar_t>;
-using knnAnnoyAngular   = knncolle::Annoy<Annoy::Angular, int, UMAPAnalysisPlugin::scalar_t, UMAPAnalysisPlugin::scalar_t, int32_t, UMAPAnalysisPlugin::scalar_t>;
-using knnAnnoyDot       = knncolle::Annoy<Annoy::DotProduct, int, UMAPAnalysisPlugin::scalar_t, UMAPAnalysisPlugin::scalar_t, int32_t, UMAPAnalysisPlugin::scalar_t>;
+using knnAnnoyEuclidean = knncolle::Annoy<Annoy::Euclidean, int, scalar_t, scalar_t, int32_t, scalar_t>;
+using knnAnnoyAngular   = knncolle::Annoy<Annoy::Angular, int, scalar_t, scalar_t, int32_t, scalar_t>;
+using knnAnnoyDot       = knncolle::Annoy<Annoy::DotProduct, int, scalar_t, scalar_t, int32_t, scalar_t>;
 
-using knnHnswEuclidean  = knncolle::Hnsw<knncolle::hnsw_distances::Euclidean, int, UMAPAnalysisPlugin::scalar_t, UMAPAnalysisPlugin::scalar_t>;
-using knnHnswDot        = knncolle::Hnsw<knncolle::hnsw_distances::InnerProduct, int, UMAPAnalysisPlugin::scalar_t, UMAPAnalysisPlugin::scalar_t>;
+using knnHnswEuclidean  = knncolle::Hnsw<knncolle::hnsw_distances::Euclidean, int, scalar_t, scalar_t>;
+using knnHnswDot        = knncolle::Hnsw<knncolle::hnsw_distances::InnerProduct, int, scalar_t, scalar_t>;
 
-UMAPAnalysisPlugin::UMAPAnalysisPlugin(const PluginFactory* factory) :
-    AnalysisPlugin(factory),
-    _settingsAction(this),
-    _knnSettingsAction(this),
-    _outDimensions(2),
-    _outputPoints(nullptr),
-    _umap(),
-    _shouldStop(false)
-{
-}
-
-static void normalizData(std::vector<UMAPAnalysisPlugin::scalar_t>& data) {
+static void normalizData(std::vector<scalar_t>& data) {
     float norm = 0.0f;
-    for (const auto& val: data)
+    for (const auto& val : data)
         norm += val * val;
 
     norm = 1.0f / (sqrtf(norm) + 1e-30f);
@@ -74,22 +58,48 @@ static void normalizData(std::vector<UMAPAnalysisPlugin::scalar_t>& data) {
         data[i] *= norm;
 }
 
+
+UMAPAnalysisPlugin::UMAPAnalysisPlugin(const PluginFactory* factory) :
+    AnalysisPlugin(factory),
+    _settingsAction(this),
+    _knnSettingsAction(this),
+    _outDimensions(2),
+    _outputPoints(nullptr),
+    _umapWorker(),
+    _workerThread(nullptr)
+{
+}
+
+UMAPAnalysisPlugin::~UMAPAnalysisPlugin()
+{
+    _workerThread.quit();           // Signal the thread to quit gracefully
+    if (!_workerThread.wait(500))   // Wait for the thread to actually finish
+        _workerThread.terminate();  // Terminate thread after 0.5 seconds
+
+    deleteWorker();
+}
+
+void UMAPAnalysisPlugin::deleteWorker()
+{
+    if (_umapWorker)
+    {
+        _umapWorker->changeThread(QThread::currentThread());
+        delete _umapWorker;
+    }
+}
+
 void UMAPAnalysisPlugin::init()
 {
     // Create UMAP output dataset (a points dataset which is derived from the input points dataset) and set the output dataset
     setOutputDataset(mv::data().createDerivedDataset("UMAP Embedding", getInputDataset(), getInputDataset()));
 
-    const auto inputPoints  = getInputDataset<Points>();
+    const Dataset<Points> inputPoints = getInputDataset<Points>();
     _outputPoints = getOutputDataset<Points>();
 
-    // Inform the core (and thus others) that the data changed
-    const auto updatePoints = [this]() {
-        _outputPoints->setData(_embedding.data(), _embedding.size() / _outDimensions, _outDimensions);
-        events().notifyDatasetDataChanged(_outputPoints);
-    };
-
-    _embedding.resize(inputPoints->getNumPoints() * static_cast<size_t>(_outDimensions));
-    updatePoints();
+    std::vector<scalar_t> initEmbeddingValues;
+    initEmbeddingValues.resize(inputPoints->getNumPoints() * static_cast<size_t>(_outDimensions));
+    _outputPoints->setData(initEmbeddingValues.data(), initEmbeddingValues.size() / _outDimensions, _outDimensions);
+    events().notifyDatasetDataChanged(_outputPoints);
 
     // Set the dimension names as visible in the GUI
     _outputPoints->setDimensionNames({ "UMAP x", "UMAP y" });
@@ -103,175 +113,231 @@ void UMAPAnalysisPlugin::init()
     _outputPoints->getDataHierarchyItem().select();
     _outputPoints->_infoAction->collapse();
 
-    // Update current epoch action
-    auto updateCurrentEpochAction = [this](int currentEpoch) {
-        _settingsAction.getCurrentEpochAction().setString(QString::number(currentEpoch));
-    };
+    // Initialize current epoch action
+    _settingsAction.getCurrentEpochAction().setString(QString::number(0));
 
     // Compute suggested number of epoch
     _settingsAction.getNumberOfEpochsAction().setValue(umappp::choose_num_epochs(-1, inputPoints->getNumPoints()));
 
-    auto computeUMAP = [this, updatePoints, updateCurrentEpochAction, inputPoints]() {
-        auto& datasetTask = getOutputDataset()->getTask();
-        datasetTask.setName("UMAP analysis");
-        datasetTask.setRunning();
-        datasetTask.setProgress(0.0f);
-        datasetTask.setProgressDescription("Initializing...");
-
-        // Get the number of epochs from the settings
-        const auto numberOfEpochs = _settingsAction.getNumberOfEpochsAction().getValue();
-
-        // Create list of data from the enabled dimensions
-        std::vector<scalar_t> data;
-        std::vector<unsigned int> indices;
-
-        // Extract the enabled dimensions from the data
-        std::vector<bool> enabledDimensions = getInputDataset<Points>()->getDimensionsPickerAction().getEnabledDimensions();
-
-        const auto numEnabledDimensions = count_if(enabledDimensions.begin(), enabledDimensions.end(), [](bool b) { return b; });
-
-        size_t numPoints = inputPoints->isFull() ? inputPoints->getNumPoints() : inputPoints->indices.size();
-        data.resize(numPoints * numEnabledDimensions);
-
-        for (int i = 0; i < inputPoints->getNumDimensions(); i++)
-            if (enabledDimensions[i])
-                indices.push_back(i);
-
-        inputPoints->populateDataForDimensions<std::vector<scalar_t>, std::vector<unsigned int>>(data, indices);
-
-        // determine threading
-        unsigned int nThreads = 1;
-
-#ifdef USE_OPENMP
-        if (_knnSettingsAction.getMultithreadAction().isChecked())
-        {
-            nThreads = omp_get_max_threads();
-            if (nThreads <= 0)
-                nThreads = 1;
-        }
-#endif
-
-        // compute knn
-        knncolle::NeighborList<int, scalar_t> nearestNeighbors(numPoints);
-        const KnnParameters knnParams = _knnSettingsAction.getKnnParameters();
-        const int numNeighbors = knnParams.getK();
-        {
-            int nDim = numEnabledDimensions;
-
-            qDebug() << "UMAP: compute knn: " << numNeighbors << " neighbors";
-
-            std::unique_ptr<knncolle::Base<int, UMAPAnalysisPlugin::scalar_t, UMAPAnalysisPlugin::scalar_t>> searcher;
-
-            if (knnParams.getKnnAlgorithm() == KnnLibrary::ANNOY) {
-
-                if(knnParams.getKnnDistanceMetric() == KnnMetric::COSINE)
-                    searcher = std::make_unique<knnAnnoyAngular>(nDim, numPoints, data.data(), knnParams.getAnnoyNumTrees(), knnParams.getAnnoyNumChecks());
-                else if (knnParams.getKnnDistanceMetric() == KnnMetric::DOT)
-                    searcher = std::make_unique<knnAnnoyDot>(nDim, numPoints, data.data(), knnParams.getAnnoyNumTrees(), knnParams.getAnnoyNumChecks());
-                else
-                    searcher = std::make_unique<knnAnnoyEuclidean>(nDim, numPoints, data.data(), knnParams.getAnnoyNumTrees(), knnParams.getAnnoyNumChecks());
-            }
-            else // knnParams.getKnnAlgorithm() == KnnLibrary::HNSW
-            {
-                if (knnParams.getKnnDistanceMetric() == KnnMetric::COSINE)
-                {
-                    normalizData(data);
-                    searcher = std::make_unique<knnHnswDot>(nDim, numPoints, data.data(), knnParams.getHNSWm(), knnParams.getHNSWef(), knnParams.getHNSWef());
-                }
-                else if (knnParams.getKnnDistanceMetric() == KnnMetric::DOT)
-                    searcher = std::make_unique<knnHnswDot>(nDim, numPoints, data.data(), knnParams.getHNSWm(), knnParams.getHNSWef(), knnParams.getHNSWef());
-                else
-                    searcher = std::make_unique<knnHnswEuclidean>(nDim, numPoints, data.data(), knnParams.getHNSWm(), knnParams.getHNSWef(), knnParams.getHNSWef());
-            }
-
-            nearestNeighbors = knncolle::find_nearest_neighbors<int, scalar_t>(searcher.get(), numNeighbors, nThreads);
-
-        }
-
-        _umap = UMAP();
-        _umap.set_num_neighbors(numNeighbors);
-        _umap.set_num_epochs(numberOfEpochs);
-
-        // default is spectral
-        if (_settingsAction.getInitializeAction().getCurrentText() == "Random")
-            _umap.set_initialize(umappp::InitMethod::RANDOM);
-
-        auto status = std::make_unique<UMAP::Status>(_umap.initialize(nearestNeighbors, _outDimensions, _embedding.data()));
-
-        auto updateEmbeddingAndUI = [this, updatePoints, updateCurrentEpochAction](int epoch) {
-            updatePoints();
-            updateCurrentEpochAction(epoch);
-            };
-
-        updateCurrentEpochAction(0);
-
-        if (numberOfEpochs == 0 || _shouldStop)
-        {
-            _shouldStop = false;
-            return;
-        }
-
-        datasetTask.setProgressDescription("Computing...");
-
-        qDebug() << "UMAP: start gradient descent: " << numberOfEpochs << " epochs";
-
-        int iter = 1;
-        // Iteratively update UMAP embedding
-        for (; iter < numberOfEpochs; iter++)
-        {
-            if (_shouldStop)
-                break;
-
-            datasetTask.setProgress(iter / static_cast<float>(numberOfEpochs));
-            datasetTask.setProgressDescription(QString("Computing epoch %1/%2").arg(QString::number(iter), QString::number(numberOfEpochs)));
-
-            status->run(iter);
-
-            if (iter % 10 == 0)
-            {
-                updateEmbeddingAndUI(iter);
-                QCoreApplication::processEvents();
-            }
-        }
-
-        updateEmbeddingAndUI(iter);
-
-        qDebug() << "UMAP: total epochs: " << status->epoch() + 1 ;
-
-        // Flag the analysis task as finished
-        datasetTask.setFinished();
-        _shouldStop = false;
-        };
-    
+    // Create UMAP worker, which will be executed in another thread
     // Start the analysis when the user clicks the start analysis push button
-    connect(&_settingsAction.getStartAction(), &mv::gui::TriggerAction::triggered, this, [this, computeUMAP] {
+    connect(&_settingsAction.getStartAction(), &mv::gui::TriggerAction::triggered, this, [this] {
 
         // Disable actions during analysis
         _settingsAction.setStarted();
         _knnSettingsAction.setReadOnly(true);
 
-        // Run UMAP in another thread
-        QFuture<void> future = QtConcurrent::run(computeUMAP);
-        QFutureWatcher<void>* watcher = new QFutureWatcher<void>();
+        deleteWorker();
 
-        // Enabled actions again once computation is done
-        connect(watcher, &QFutureWatcher<int>::finished, [this, watcher]() {
-           _settingsAction.setFinished();
-           _knnSettingsAction.setReadOnly(false);
-           watcher->deleteLater();
+        getOutputDataset()->getTask().setRunning();
+
+        Dataset<Points> inputPoints = getInputDataset<Points>();
+        _umapWorker = new UMAPWorker(inputPoints, &getOutputDataset()->getTask(), _outDimensions, &_settingsAction, &_knnSettingsAction);
+
+        _umapWorker->changeThread(&_workerThread);
+
+        // To-Worker signals
+        connect(this, &UMAPAnalysisPlugin::startWorker, _umapWorker, &UMAPWorker::compute);
+        connect(this, &UMAPAnalysisPlugin::stopWorker, _umapWorker, &UMAPWorker::stop, Qt::DirectConnection);
+
+        // From-Worker signals
+        connect(_umapWorker, &UMAPWorker::embeddingUpdate, this, [this](const std::vector<scalar_t> embedding, int epoch) {
+            getOutputDataset<Points>()->setData(embedding.data(), embedding.size() / _outDimensions, _outDimensions);
+
+            _settingsAction.getCurrentEpochAction().setString(QString::number(epoch));
+
+            events().notifyDatasetDataChanged(getOutputDataset());
             });
 
-        watcher->setFuture(future);
+        connect(_umapWorker, &UMAPWorker::finished, this, [this]() {
+            _settingsAction.setFinished();
+            _knnSettingsAction.setReadOnly(false);
+            getOutputDataset()->getTask().setFinished();
+            });
+
+        _workerThread.start();
+        emit startWorker();
         });
 
-    connect(&_settingsAction.getStopAction(), &mv::gui::TriggerAction::triggered, this, [this] {
-        _shouldStop = true;
-        });
+    connect(&_settingsAction.getStopAction(), &mv::gui::TriggerAction::triggered, this, [this](bool checked) {
+        emit stopWorker();
+        }, 
+        Qt::DirectConnection);
 
-    // Initialize current epoch action
-    updateCurrentEpochAction(0);
 }
 
+
+/// ////////// ///
+/// UMAPWorker ///
+/// ////////// ///
+
+UMAPWorker::UMAPWorker(Dataset<Points>& inputPoints, DatasetTask* parentTask, int outDim, SettingsAction* settings, KnnSettingsAction* knnSettings):
+    _umap(),
+    _shouldStop(false),
+    _inputDataset(inputPoints),
+    _computeTask(nullptr),
+    _parentTask(parentTask),
+    _settingsAction(settings),
+    _knnSettingsAction(knnSettings),
+    _embedding(),
+    _outDimensions(outDim)
+{
+    _embedding.resize(inputPoints->getNumPoints() * static_cast<size_t>(_outDimensions));
+}
+
+void UMAPWorker::changeThread(QThread* targetThread)
+{
+    this->moveToThread(targetThread);
+}
+
+void UMAPWorker::resetThread()
+{
+    changeThread(QCoreApplication::instance()->thread());
+}
+
+void UMAPWorker::compute()
+{
+    _computeTask = std::make_unique<mv::Task>(this, "UMAP analysis", Task::GuiScopes{ Task::GuiScope::DataHierarchy, Task::GuiScope::Foreground }, Task::Status::Idle);
+
+    _computeTask->setParentTask(_parentTask);
+    
+    connect(_parentTask, &Task::requestAbort, this, [this]() -> void { _shouldStop = true; }, Qt::DirectConnection);
+
+    _computeTask->setRunning();
+    _computeTask->setProgress(0.0f);
+    _computeTask->setProgressDescription("Initializing...");
+
+    _shouldStop = false;
+
+    // Get the number of epochs from the settings
+    const auto numberOfEpochs = _settingsAction->getNumberOfEpochsAction().getValue();
+
+    // Create list of data from the enabled dimensions
+    std::vector<scalar_t> data;
+    std::vector<unsigned int> indices;
+
+    // Extract the enabled dimensions from the data
+    std::vector<bool> enabledDimensions = _inputDataset->getDimensionsPickerAction().getEnabledDimensions();
+
+    const auto numEnabledDimensions = count_if(enabledDimensions.begin(), enabledDimensions.end(), [](bool b) { return b; });
+
+    size_t numPoints = _inputDataset->isFull() ? _inputDataset->getNumPoints() : _inputDataset->indices.size();
+    data.resize(numPoints * numEnabledDimensions);
+
+    for (int i = 0; i < _inputDataset->getNumDimensions(); i++)
+        if (enabledDimensions[i])
+            indices.push_back(i);
+
+    _inputDataset->populateDataForDimensions<std::vector<scalar_t>, std::vector<unsigned int>>(data, indices);
+
+    // determine threading
+    unsigned int nThreads = 1;
+
+#ifdef USE_OPENMP
+    if (_knnSettingsAction->getMultithreadAction().isChecked())
+    {
+        nThreads = omp_get_max_threads();
+        if (nThreads <= 0)
+            nThreads = 1;
+    }
+#endif
+
+    // compute knn
+    knncolle::NeighborList<int, scalar_t> nearestNeighbors(numPoints);
+    const KnnParameters knnParams = _knnSettingsAction->getKnnParameters();
+    const int numNeighbors = knnParams.getK();
+    {
+        int nDim = numEnabledDimensions;
+
+        qDebug() << "UMAP: compute knn: " << numNeighbors << " neighbors";
+
+        std::unique_ptr<knncolle::Base<int, scalar_t, scalar_t>> searcher;
+
+        if (knnParams.getKnnAlgorithm() == KnnLibrary::ANNOY) {
+
+            if (knnParams.getKnnDistanceMetric() == KnnMetric::COSINE)
+                searcher = std::make_unique<knnAnnoyAngular>(nDim, numPoints, data.data(), knnParams.getAnnoyNumTrees(), knnParams.getAnnoyNumChecks());
+            else if (knnParams.getKnnDistanceMetric() == KnnMetric::DOT)
+                searcher = std::make_unique<knnAnnoyDot>(nDim, numPoints, data.data(), knnParams.getAnnoyNumTrees(), knnParams.getAnnoyNumChecks());
+            else
+                searcher = std::make_unique<knnAnnoyEuclidean>(nDim, numPoints, data.data(), knnParams.getAnnoyNumTrees(), knnParams.getAnnoyNumChecks());
+        }
+        else // knnParams.getKnnAlgorithm() == KnnLibrary::HNSW
+        {
+            if (knnParams.getKnnDistanceMetric() == KnnMetric::COSINE)
+            {
+                normalizData(data);
+                searcher = std::make_unique<knnHnswDot>(nDim, numPoints, data.data(), knnParams.getHNSWm(), knnParams.getHNSWef(), knnParams.getHNSWef());
+            }
+            else if (knnParams.getKnnDistanceMetric() == KnnMetric::DOT)
+                searcher = std::make_unique<knnHnswDot>(nDim, numPoints, data.data(), knnParams.getHNSWm(), knnParams.getHNSWef(), knnParams.getHNSWef());
+            else
+                searcher = std::make_unique<knnHnswEuclidean>(nDim, numPoints, data.data(), knnParams.getHNSWm(), knnParams.getHNSWef(), knnParams.getHNSWef());
+        }
+
+        nearestNeighbors = knncolle::find_nearest_neighbors<int, scalar_t>(searcher.get(), numNeighbors, nThreads);
+
+    }
+
+    _umap = UMAP();
+    _umap.set_num_neighbors(numNeighbors);
+    _umap.set_num_epochs(numberOfEpochs);
+
+    // default is spectral
+    if (_settingsAction->getInitializeAction().getCurrentText() == "Random")
+        _umap.set_initialize(umappp::InitMethod::RANDOM);
+
+    auto status = std::make_unique<UMAP::Status>(_umap.initialize(nearestNeighbors, _outDimensions, _embedding.data()));
+
+    const auto updateEmbedding = [this, numPoints](int ep) -> void {
+        _outEmbedding.assign(_embedding.begin(), _embedding.end());
+        emit embeddingUpdate(_outEmbedding, ep);
+        };
+
+    updateEmbedding(0);
+
+    if (numberOfEpochs == 0 || _shouldStop)
+    {
+        _shouldStop = false;
+        emit finished();
+        return;
+    }
+
+    _computeTask->setProgressDescription("Computing...");
+    //_computeTask->setSubtasks(numberOfEpochs);
+
+    qDebug() << "UMAP: start gradient descent: " << numberOfEpochs << " epochs";
+
+    int iter = 1;
+    // Iteratively update UMAP embedding
+    for (; iter < numberOfEpochs; iter++)
+    {
+        if (_shouldStop)
+            break;
+
+        status->run(iter);
+
+        if (iter % 10 == 0)
+            updateEmbedding(iter);
+
+        _computeTask->setProgress(iter / static_cast<float>(numberOfEpochs));
+        _computeTask->setProgressDescription(QString("Computing epoch %1/%2").arg(QString::number(iter), QString::number(numberOfEpochs)));
+        //_computeTask->setSubtaskStarted(iter);
+        QCoreApplication::processEvents();
+    }
+
+    updateEmbedding(iter);
+
+    qDebug() << "UMAP: total epochs: " << status->epoch() + 1;
+
+    // Flag the analysis task as finished
+    _computeTask->setFinished();
+    //_computeTask->setSubtaskFinished(numberOfEpochs);
+
+    emit finished();
+
+    resetThread();
+}
 
 /// ////////////// ///
 /// Plugin Factory ///
