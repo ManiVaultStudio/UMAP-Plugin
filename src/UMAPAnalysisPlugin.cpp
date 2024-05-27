@@ -205,6 +205,7 @@ void UMAPWorker::compute()
     _computeTask->setRunning();
     _computeTask->setProgress(0.0f);
     _computeTask->setProgressDescription("Initializing...");
+    QCoreApplication::processEvents();
 
     _shouldStop = false;
 
@@ -278,6 +279,8 @@ void UMAPWorker::compute()
 
     }
 
+    qDebug() << "UMAP: initializing...";
+
     _umap = UMAP();
     _umap.set_num_neighbors(numNeighbors);
     _umap.set_num_epochs(numberOfEpochs);
@@ -302,9 +305,6 @@ void UMAPWorker::compute()
         return;
     }
 
-    _computeTask->setProgressDescription("Computing...");
-    //_computeTask->setSubtasks(numberOfEpochs);
-
     qDebug() << "UMAP: start gradient descent: " << numberOfEpochs << " epochs";
 
     int iter = 1;
@@ -320,7 +320,7 @@ void UMAPWorker::compute()
             updateEmbedding(iter);
 
         _computeTask->setProgress(iter / static_cast<float>(numberOfEpochs));
-        _computeTask->setProgressDescription(QString("Computing epoch %1/%2").arg(QString::number(iter), QString::number(numberOfEpochs)));
+        _computeTask->setProgressDescription(QString("Epoch %1/%2").arg(QString::number(iter), QString::number(numberOfEpochs)));
         //_computeTask->setSubtaskStarted(iter);
         QCoreApplication::processEvents();
     }
