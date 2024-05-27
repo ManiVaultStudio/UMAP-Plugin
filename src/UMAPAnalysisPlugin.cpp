@@ -203,7 +203,6 @@ void UMAPWorker::compute()
     connect(_parentTask, &Task::requestAbort, this, [this]() -> void { _shouldStop = true; }, Qt::DirectConnection);
 
     _computeTask->setRunning();
-    _computeTask->setProgress(0.0f);
     _computeTask->setProgressDescription("Initializing...");
     QCoreApplication::processEvents();
 
@@ -321,7 +320,6 @@ void UMAPWorker::compute()
 
         _computeTask->setProgress(iter / static_cast<float>(numberOfEpochs));
         _computeTask->setProgressDescription(QString("Epoch %1/%2").arg(QString::number(iter), QString::number(numberOfEpochs)));
-        //_computeTask->setSubtaskStarted(iter);
         QCoreApplication::processEvents();
     }
 
@@ -331,7 +329,6 @@ void UMAPWorker::compute()
 
     // Flag the analysis task as finished
     _computeTask->setFinished();
-    //_computeTask->setSubtaskFinished(numberOfEpochs);
 
     emit finished();
 
