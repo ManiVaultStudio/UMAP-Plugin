@@ -5,7 +5,6 @@
 #include "actions/IntegralAction.h"
 #include "actions/OptionAction.h"
 #include "actions/StringAction.h"
-#include "actions/ToggleAction.h"
 #include "actions/TriggerAction.h"
 
 using namespace mv::gui;
@@ -24,20 +23,20 @@ public:
      */
     ButtonsGroupAction(QObject* parent);
 
-    void changeEnabled(bool start, bool stop)
+    void changeEnabled(bool enable)
     {
-        _startComputationAction.setEnabled(start);
-        _stopComputationAction.setEnabled(stop);
+        _startComputationAction.setEnabled(enable);
+        _stopComputationAction.setEnabled(!enable);
     }
 
     void setStarted()
     {
-        changeEnabled(false, true);
+        changeEnabled(false);
     }
 
     void setFinished()
     {
-        changeEnabled(true, false);
+        changeEnabled(true);
     }
 
 public: // Action getters
@@ -66,6 +65,24 @@ public:
      */
     SettingsAction(QObject* parent = nullptr);
 
+    void changeEnabled(bool enable)
+    {
+        _numberOfEpochsAction.setEnabled(enable);
+        _initializeActions.setEnabled(enable);
+    }
+
+    void setStarted()
+    {
+        _startStopActions.setStarted();
+        changeEnabled(false);
+    }
+
+    void setFinished()
+    {
+        _startStopActions.setFinished();
+        changeEnabled(true);
+    }
+
 public: // Action getters
 
     StringAction& getCurrentEpochAction() { return _currentEpochAction; }
@@ -74,12 +91,10 @@ public: // Action getters
     TriggerAction& getStartAction() { return _startStopActions.getStartComputationAction(); }
     TriggerAction& getStopAction() { return _startStopActions.getStopComputationAction(); }
     OptionAction& getInitializeAction() { return _initializeActions; }
-    ToggleAction& getMultithreadAction() { return _multithreadActions; }
 
 public:
     StringAction        _currentEpochAction;            /** Current epoch string  */
     IntegralAction      _numberOfEpochsAction;          /** Number of iterations */
     ButtonsGroupAction  _startStopActions;              /** Buttons that control start and top of computation */
     OptionAction        _initializeActions;             /** How to initialize the embedding */
-    ToggleAction        _multithreadActions;            /** Whether to use multiple threads */
 };

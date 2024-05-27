@@ -5,6 +5,7 @@ KnnSettingsAction::KnnSettingsAction(QObject* parent) :
     _knnParameters(),
     _knnAlgorithm(this, "Algorithm"),
     _kAction(this, "Number kNN"),
+    _multithreadActions(this, "Use multithread", true),
     _numTreesAction(this, "Annoy Trees"),
     _numChecksAction(this, "Annoy Checks"),
     _mAction(this, "HNSW M"),
@@ -12,10 +13,17 @@ KnnSettingsAction::KnnSettingsAction(QObject* parent) :
 {
     addAction(&_knnAlgorithm);
     addAction(&_kAction);
+
+#ifdef USE_OPENMP
+    addAction(&_multithreadActions);
+#endif
+
     addAction(&_numTreesAction);
     addAction(&_numChecksAction);
     addAction(&_mAction);
     addAction(&_efAction);
+
+    _multithreadActions.setToolTip("Use more memory to increase computation speed");
 
     _numTreesAction.setDefaultWidgetFlags(IntegralAction::SpinBox);
     _numChecksAction.setDefaultWidgetFlags(IntegralAction::SpinBox);
@@ -28,6 +36,12 @@ KnnSettingsAction::KnnSettingsAction(QObject* parent) :
     _numChecksAction.initialize(1, 10000, 512);
     _mAction.initialize(2, 300, 16);
     _efAction.initialize(1, 10000, 200);
+
+#ifndef NDEBUG
+    _multithreadActions.setChecked(false);
+#endif // !NDEBUG
+
+    _multithreadActions.setChecked(false);
 
     const auto updateKnnAlgorithm = [this]() -> void {
         if(_knnAlgorithm.getCurrentIndex() == 0)
@@ -61,6 +75,7 @@ KnnSettingsAction::KnnSettingsAction(QObject* parent) :
 
         _knnAlgorithm.setEnabled(enable);
         _kAction.setEnabled(enable);
+        _multithreadActions.setEnabled(enable);
         _numTreesAction.setEnabled(enable);
         _numChecksAction.setEnabled(enable);
         _mAction.setEnabled(enable);

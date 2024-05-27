@@ -3,6 +3,7 @@
 #include "actions/GroupAction.h"
 #include "actions/IntegralAction.h"
 #include "actions/OptionAction.h"
+#include "actions/ToggleAction.h"
 
 using namespace mv::gui;
 
@@ -83,6 +84,7 @@ public: // Action getters
 
     OptionAction& getKnnAlgorithmAction() { return _knnAlgorithm; };
     IntegralAction& getKAction() { return _kAction; };
+    ToggleAction& getMultithreadAction() { return _multithreadActions; }
     IntegralAction& getNumTreesAction() { return _numTreesAction; };
     IntegralAction& getNumChecksAction() { return _numChecksAction; };
     IntegralAction& getMAction() { return _mAction; };
@@ -93,6 +95,7 @@ protected:
 
     OptionAction            _knnAlgorithm;              /** Annoy or HNSW */
     IntegralAction          _kAction;                   /** Number of kNN */
+    ToggleAction            _multithreadActions;        /** Whether to use multiple threads */
     IntegralAction          _numTreesAction;            /** Annoy parameter Trees action */
     IntegralAction          _numChecksAction;           /** Annoy parameter Checks action */
     IntegralAction          _mAction;                   /** HNSW parameter M action */

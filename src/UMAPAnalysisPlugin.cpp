@@ -11,6 +11,7 @@
 #include <hnswlib/space_ip.h>
 #include <knncolle/Annoy/Annoy.hpp>
 #include <knncolle/utils/Base.hpp>
+#include <knncolle/utils/find_nearest_neighbors.hpp>
 #include <knncolle/Hnsw/Hnsw.hpp>
 #pragma warning(default:4477)
 
@@ -138,69 +139,71 @@ void UMAPAnalysisPlugin::init()
 
         inputPoints->populateDataForDimensions<std::vector<scalar_t>, std::vector<unsigned int>>(data, indices);
 
-        const KnnParameters knnParams = _knnSettingsAction.getKnnParameters();
+        // determine threading
+        unsigned int nThreads = 1;
 
+#ifdef USE_OPENMP
+        if (_knnSettingsAction.getMultithreadAction().isChecked())
+        {
+            nThreads = omp_get_max_threads();
+            if (nThreads <= 0)
+                nThreads = 1;
+        }
+#endif
+
+        // compute knn
+        knncolle::NeighborList<int, scalar_t> nearestNeighbors(numPoints);
+        const KnnParameters knnParams = _knnSettingsAction.getKnnParameters();
         const int numNeighbors = knnParams.getK();
+        {
+            int nDim = numEnabledDimensions;
+
+            qDebug() << "UMAP: compute knn: " << numNeighbors << " neighbors";
+
+            std::unique_ptr<knncolle::Base<int, UMAPAnalysisPlugin::scalar_t, UMAPAnalysisPlugin::scalar_t>> searcher;
+
+            if (knnParams.getKnnAlgorithm() == KnnLibrary::ANNOY) {
+
+                if(knnParams.getKnnDistanceMetric() == KnnMetric::COSINE)
+                    searcher = std::make_unique<knnAnnoyAngular>(nDim, numPoints, data.data(), knnParams.getAnnoyNumTrees(), knnParams.getAnnoyNumChecks());
+                else if (knnParams.getKnnDistanceMetric() == KnnMetric::DOT)
+                    searcher = std::make_unique<knnAnnoyDot>(nDim, numPoints, data.data(), knnParams.getAnnoyNumTrees(), knnParams.getAnnoyNumChecks());
+                else
+                    searcher = std::make_unique<knnAnnoyEuclidean>(nDim, numPoints, data.data(), knnParams.getAnnoyNumTrees(), knnParams.getAnnoyNumChecks());
+            }
+            else // knnParams.getKnnAlgorithm() == KnnLibrary::HNSW
+            {
+                if (knnParams.getKnnDistanceMetric() == KnnMetric::COSINE)
+                {
+                    normalizData(data);
+                    searcher = std::make_unique<knnHnswDot>(nDim, numPoints, data.data(), knnParams.getHNSWm(), knnParams.getHNSWef(), knnParams.getHNSWef());
+                }
+                else if (knnParams.getKnnDistanceMetric() == KnnMetric::DOT)
+                    searcher = std::make_unique<knnHnswDot>(nDim, numPoints, data.data(), knnParams.getHNSWm(), knnParams.getHNSWef(), knnParams.getHNSWef());
+                else
+                    searcher = std::make_unique<knnHnswEuclidean>(nDim, numPoints, data.data(), knnParams.getHNSWm(), knnParams.getHNSWef(), knnParams.getHNSWef());
+            }
+
+            nearestNeighbors = knncolle::find_nearest_neighbors<int, scalar_t>(searcher.get(), numNeighbors, nThreads);
+
+        }
 
         _umap = UMAP();
         _umap.set_num_neighbors(numNeighbors);
         _umap.set_num_epochs(numberOfEpochs);
 
-#ifdef USE_OPENMP
-        if (_settingsAction.getMultithreadAction().isChecked())
-        {
-            unsigned int nThreads = omp_get_max_threads();
-            if (nThreads <= 0)
-                nThreads = 1;
-            bool useThreads = nThreads > 1;
-
-            _umap.set_parallel_optimization(useThreads);
-            _umap.set_num_threads(nThreads);
-
-            qDebug() << "UMAP: parallelize with " << nThreads << " threads";
-        }
-#endif
-
         // default is spectral
-        if(_settingsAction.getInitializeAction().getCurrentText() == "Random")
+        if (_settingsAction.getInitializeAction().getCurrentText() == "Random")
             _umap.set_initialize(umappp::InitMethod::RANDOM);
 
-        int nDim = numEnabledDimensions;
-
-        qDebug() << "UMAP: compute knn: " << numNeighbors << " neighbors";
-
-        std::unique_ptr<knncolle::Base<int, UMAPAnalysisPlugin::scalar_t, UMAPAnalysisPlugin::scalar_t>> searcher;
-
-        if (knnParams.getKnnAlgorithm() == KnnLibrary::ANNOY) {
-
-            if(knnParams.getKnnDistanceMetric() == KnnMetric::COSINE)
-                searcher = std::make_unique<knnAnnoyAngular>(nDim, numPoints, data.data(), knnParams.getAnnoyNumTrees(), knnParams.getAnnoyNumChecks());
-            else if (knnParams.getKnnDistanceMetric() == KnnMetric::DOT)
-                searcher = std::make_unique<knnAnnoyDot>(nDim, numPoints, data.data(), knnParams.getAnnoyNumTrees(), knnParams.getAnnoyNumChecks());
-            else
-                searcher = std::make_unique<knnAnnoyEuclidean>(nDim, numPoints, data.data(), knnParams.getAnnoyNumTrees(), knnParams.getAnnoyNumChecks());
-        }
-        else // knnParams.getKnnAlgorithm() == KnnLibrary::HNSW
-        {
-            if (knnParams.getKnnDistanceMetric() == KnnMetric::COSINE)
-            {
-                normalizData(data);
-                searcher = std::make_unique<knnHnswDot>(nDim, numPoints, data.data(), knnParams.getHNSWm(), knnParams.getHNSWef(), knnParams.getHNSWef());
-            }
-            else if (knnParams.getKnnDistanceMetric() == KnnMetric::DOT)
-                searcher = std::make_unique<knnHnswDot>(nDim, numPoints, data.data(), knnParams.getHNSWm(), knnParams.getHNSWef(), knnParams.getHNSWef());
-            else
-                searcher = std::make_unique<knnHnswEuclidean>(nDim, numPoints, data.data(), knnParams.getHNSWm(), knnParams.getHNSWef(), knnParams.getHNSWef());
-        }
-
-        auto status = std::make_unique<UMAP::Status>(_umap.initialize(searcher.get(), _outDimensions, _embedding.data()));
+        auto status = std::make_unique<UMAP::Status>(_umap.initialize(nearestNeighbors, _outDimensions, _embedding.data()));
 
         auto updateEmbeddingAndUI = [this, updatePoints, updateCurrentEpochAction](int epoch) {
             updatePoints();
             updateCurrentEpochAction(epoch);
             };
 
-        updatePoints();
+        updateCurrentEpochAction(0);
 
         if (numberOfEpochs == 0 || _shouldStop)
         {
@@ -210,7 +213,7 @@ void UMAPAnalysisPlugin::init()
 
         datasetTask.setProgressDescription("Computing...");
 
-        qDebug() << "UMAP: start gradient descent: " << numberOfEpochs << " epoch";
+        qDebug() << "UMAP: start gradient descent: " << numberOfEpochs << " epochs";
 
         int iter = 1;
         // Iteratively update UMAP embedding
@@ -225,9 +228,10 @@ void UMAPAnalysisPlugin::init()
             status->run(iter);
 
             if (iter % 10 == 0)
+            {
                 updateEmbeddingAndUI(iter);
-
-            QCoreApplication::processEvents();
+                QCoreApplication::processEvents();
+            }
         }
 
         updateEmbeddingAndUI(iter);
@@ -243,8 +247,8 @@ void UMAPAnalysisPlugin::init()
     connect(&_settingsAction.getStartAction(), &mv::gui::TriggerAction::triggered, this, [this, computeUMAP] {
 
         // Disable actions during analysis
-        _settingsAction.getNumberOfEpochsAction().setEnabled(false);
-        _settingsAction.getStartStopAction().setStarted();
+        _settingsAction.setStarted();
+        _knnSettingsAction.setReadOnly(true);
 
         // Run UMAP in another thread
         QFuture<void> future = QtConcurrent::run(computeUMAP);
@@ -252,8 +256,8 @@ void UMAPAnalysisPlugin::init()
 
         // Enabled actions again once computation is done
         connect(watcher, &QFutureWatcher<int>::finished, [this, watcher]() {
-           _settingsAction.getNumberOfEpochsAction().setEnabled(true);
-           _settingsAction.getStartStopAction().setFinished();
+           _settingsAction.setFinished();
+           _knnSettingsAction.setReadOnly(false);
            watcher->deleteLater();
             });
 
@@ -279,7 +283,7 @@ QIcon UMAPAnalysisPluginFactory::getIcon(const QColor& color /*= Qt::black*/) co
 }
 
 AnalysisPlugin* UMAPAnalysisPluginFactory::produce()
-{``
+{
     return new UMAPAnalysisPlugin(this);
 }
 
