@@ -6,8 +6,12 @@
 #include <PointData/InfoAction.h>
 
 #pragma warning(disable:4477)       // annoy internal: print formatting warnings
-#include "knncolle/knncolle.hpp"
-#include "knncolle/Hnsw/Hnsw.hpp"
+#include <annoy/annoylib.h>
+#include <guiddef.h>
+#include <hnswlib/space_ip.h>
+#include <knncolle/Annoy/Annoy.hpp>
+#include <knncolle/utils/Base.hpp>
+#include <knncolle/Hnsw/Hnsw.hpp>
 #pragma warning(default:4477)
 
 #include <QDebug>
@@ -17,7 +21,10 @@
 #include <QtCore>
 
 #include <memory>
-#include <thread>
+
+#ifdef USE_OPENMP
+#include <omp.h>
+#endif
 
 Q_PLUGIN_METADATA(IID "studio.manivault.UMAPAnalysisPlugin")
 
@@ -95,23 +102,23 @@ void UMAPAnalysisPlugin::init()
     _outputPoints->getDataHierarchyItem().select();
     _outputPoints->_infoAction->collapse();
 
-    // Update current iteration action
-    auto updateCurrentIterationAction = [this](int currentIteration) {
-        _settingsAction.getCurrentIterationAction().setString(QString::number(currentIteration));
+    // Update current epoch action
+    auto updateCurrentEpochAction = [this](int currentEpoch) {
+        _settingsAction.getCurrentEpochAction().setString(QString::number(currentEpoch));
     };
 
-    // Compute suggested number of iterations
-    _settingsAction.getNumberOfIterationsAction().setValue(umappp::choose_num_epochs(-1, inputPoints->getNumPoints()));
+    // Compute suggested number of epoch
+    _settingsAction.getNumberOfEpochsAction().setValue(umappp::choose_num_epochs(-1, inputPoints->getNumPoints()));
 
-    auto computeUMAP = [this, updatePoints, updateCurrentIterationAction, inputPoints]() {
+    auto computeUMAP = [this, updatePoints, updateCurrentEpochAction, inputPoints]() {
         auto& datasetTask = getOutputDataset()->getTask();
         datasetTask.setName("UMAP analysis");
         datasetTask.setRunning();
         datasetTask.setProgress(0.0f);
         datasetTask.setProgressDescription("Initializing...");
 
-        // Get the number of iterations from the settings
-        const auto numberOfIterations = _settingsAction.getNumberOfIterationsAction().getValue();
+        // Get the number of epochs from the settings
+        const auto numberOfEpochs = _settingsAction.getNumberOfEpochsAction().getValue();
 
         // Create list of data from the enabled dimensions
         std::vector<scalar_t> data;
@@ -131,20 +138,28 @@ void UMAPAnalysisPlugin::init()
 
         inputPoints->populateDataForDimensions<std::vector<scalar_t>, std::vector<unsigned int>>(data, indices);
 
-        unsigned int nThreads = std::thread::hardware_concurrency();
-        if (nThreads == 0)
-            nThreads = 1;
-        bool useThreads = nThreads > 1;
-
         const KnnParameters knnParams = _knnSettingsAction.getKnnParameters();
 
         const int numNeighbors = knnParams.getK();
 
         _umap = UMAP();
         _umap.set_num_neighbors(numNeighbors);
-        _umap.set_num_epochs(numberOfIterations);
-        _umap.set_parallel_optimization(useThreads);
-        _umap.set_num_threads(nThreads);
+        _umap.set_num_epochs(numberOfEpochs);
+
+#ifdef USE_OPENMP
+        if (_settingsAction.getMultithreadAction().isChecked())
+        {
+            unsigned int nThreads = omp_get_max_threads();
+            if (nThreads <= 0)
+                nThreads = 1;
+            bool useThreads = nThreads > 1;
+
+            _umap.set_parallel_optimization(useThreads);
+            _umap.set_num_threads(nThreads);
+
+            qDebug() << "UMAP: parallelize with " << nThreads << " threads";
+        }
+#endif
 
         // default is spectral
         if(_settingsAction.getInitializeAction().getCurrentText() == "Random")
@@ -180,14 +195,14 @@ void UMAPAnalysisPlugin::init()
 
         auto status = std::make_unique<UMAP::Status>(_umap.initialize(searcher.get(), _outDimensions, _embedding.data()));
 
-        auto updateEmbeddingAndUI = [this, updatePoints, updateCurrentIterationAction](int iter) {
+        auto updateEmbeddingAndUI = [this, updatePoints, updateCurrentEpochAction](int epoch) {
             updatePoints();
-            updateCurrentIterationAction(iter);
+            updateCurrentEpochAction(epoch);
             };
 
         updatePoints();
 
-        if (numberOfIterations == 0 || _shouldStop)
+        if (numberOfEpochs == 0 || _shouldStop)
         {
             _shouldStop = false;
             return;
@@ -195,17 +210,17 @@ void UMAPAnalysisPlugin::init()
 
         datasetTask.setProgressDescription("Computing...");
 
-        qDebug() << "UMAP: start gradient descent: " << numberOfIterations << " iterations";
+        qDebug() << "UMAP: start gradient descent: " << numberOfEpochs << " epoch";
 
         int iter = 1;
         // Iteratively update UMAP embedding
-        for (; iter < numberOfIterations; iter++)
+        for (; iter < numberOfEpochs; iter++)
         {
             if (_shouldStop)
                 break;
 
-            datasetTask.setProgress(iter / static_cast<float>(numberOfIterations));
-            datasetTask.setProgressDescription(QString("Computing iteration %1/%2").arg(QString::number(iter), QString::number(numberOfIterations)));
+            datasetTask.setProgress(iter / static_cast<float>(numberOfEpochs));
+            datasetTask.setProgressDescription(QString("Computing epoch %1/%2").arg(QString::number(iter), QString::number(numberOfEpochs)));
 
             status->run(iter);
 
@@ -217,7 +232,7 @@ void UMAPAnalysisPlugin::init()
 
         updateEmbeddingAndUI(iter);
 
-        qDebug() << "UMAP: total iterations: " << status->epoch() + 1 ;
+        qDebug() << "UMAP: total epochs: " << status->epoch() + 1 ;
 
         // Flag the analysis task as finished
         datasetTask.setFinished();
@@ -228,7 +243,7 @@ void UMAPAnalysisPlugin::init()
     connect(&_settingsAction.getStartAction(), &mv::gui::TriggerAction::triggered, this, [this, computeUMAP] {
 
         // Disable actions during analysis
-        _settingsAction.getNumberOfIterationsAction().setEnabled(false);
+        _settingsAction.getNumberOfEpochsAction().setEnabled(false);
         _settingsAction.getStartStopAction().setStarted();
 
         // Run UMAP in another thread
@@ -237,7 +252,7 @@ void UMAPAnalysisPlugin::init()
 
         // Enabled actions again once computation is done
         connect(watcher, &QFutureWatcher<int>::finished, [this, watcher]() {
-           _settingsAction.getNumberOfIterationsAction().setEnabled(true);
+           _settingsAction.getNumberOfEpochsAction().setEnabled(true);
            _settingsAction.getStartStopAction().setFinished();
            watcher->deleteLater();
             });
@@ -249,8 +264,8 @@ void UMAPAnalysisPlugin::init()
         _shouldStop = true;
         });
 
-    // Initialize current iteration action
-    updateCurrentIterationAction(0);
+    // Initialize current epoch action
+    updateCurrentEpochAction(0);
 }
 
 
@@ -264,7 +279,7 @@ QIcon UMAPAnalysisPluginFactory::getIcon(const QColor& color /*= Qt::black*/) co
 }
 
 AnalysisPlugin* UMAPAnalysisPluginFactory::produce()
-{
+{``
     return new UMAPAnalysisPlugin(this);
 }
 

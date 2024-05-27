@@ -5,6 +5,7 @@
 #include "actions/IntegralAction.h"
 #include "actions/OptionAction.h"
 #include "actions/StringAction.h"
+#include "actions/ToggleAction.h"
 #include "actions/TriggerAction.h"
 
 using namespace mv::gui;
@@ -67,16 +68,18 @@ public:
 
 public: // Action getters
 
-    StringAction& getCurrentIterationAction() { return _currentIterationAction; }
-    IntegralAction& getNumberOfIterationsAction() { return _numberOfIterationsAction; }
+    StringAction& getCurrentEpochAction() { return _currentEpochAction; }
+    IntegralAction& getNumberOfEpochsAction() { return _numberOfEpochsAction; }
     ButtonsGroupAction& getStartStopAction() { return _startStopActions; }
     TriggerAction& getStartAction() { return _startStopActions.getStartComputationAction(); }
     TriggerAction& getStopAction() { return _startStopActions.getStopComputationAction(); }
     OptionAction& getInitializeAction() { return _initializeActions; }
+    ToggleAction& getMultithreadAction() { return _multithreadActions; }
 
 public:
-    StringAction        _currentIterationAction;        /** Current iteration string action from the mv::gui namespace */
-    IntegralAction      _numberOfIterationsAction;      /** Number of iterations action from the mv::gui namespace */
+    StringAction        _currentEpochAction;            /** Current epoch string  */
+    IntegralAction      _numberOfEpochsAction;          /** Number of iterations */
     ButtonsGroupAction  _startStopActions;              /** Buttons that control start and top of computation */
     OptionAction        _initializeActions;             /** How to initialize the embedding */
+    ToggleAction        _multithreadActions;            /** Whether to use multiple threads */
 };

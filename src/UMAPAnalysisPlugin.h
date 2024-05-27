@@ -4,8 +4,8 @@
 
 #include <PointData/PointData.h>
 
-#include "SettingsAction.h"
 #include "KnnSettingsAction.h"
+#include "SettingsAction.h"
 
 #define UMAPPP_CUSTOM_NEIGHBORS // due to an older hsnw version in knncolle
 #include "umappp/Umap.hpp"

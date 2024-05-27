@@ -2,28 +2,33 @@
 
 SettingsAction::SettingsAction(QObject* parent) :
     GroupAction(parent, "SettingsAction", true),
-    _currentIterationAction(this, "Iterations"),
-    _numberOfIterationsAction(this, "Number of iterations", 0, 10000, 500),
+    _currentEpochAction(this, "Epoch"),
+    _numberOfEpochsAction(this, "Epochs", 0, 10000, 500),
     _startStopActions(this),
+    _multithreadActions(this, "Use multithread", false),
     _initializeActions(this, "Initialization", {"Spectral", "Random"})
 {
     setText("UMAP Settings");
 
-    _currentIterationAction.setEnabled(false);
+    _currentEpochAction.setEnabled(false);
 
-    _currentIterationAction.setToolTip("Current iteration index");
-    _numberOfIterationsAction.setToolTip("Number of iterations to compute");
+    _currentEpochAction.setToolTip("Current epoch index");
+    _numberOfEpochsAction.setToolTip("Number of epochs to compute");
     _startStopActions.setToolTip("Computation control");
     _initializeActions.setToolTip("Use spectral decomposition of the graph Laplacian or random initialization");
+    _multithreadActions.setToolTip("Use more memory to increase computation speed");
 
     _initializeActions.setCurrentIndex(0);
 
-    addAction(&_currentIterationAction);
-    addAction(&_numberOfIterationsAction);
+    addAction(&_currentEpochAction);
+    addAction(&_numberOfEpochsAction);
     addAction(&_startStopActions);
     addAction(&_initializeActions);
-}
 
+#ifdef USE_OPENMP
+    addAction(&_multithreadActions);
+#endif
+}
 
 /// ////////////////// ///
 /// Start Stop Buttons ///

@@ -80,7 +80,7 @@ add_library(${UMAPANALYSIS} SHARED ${UMAPANALYSIS_SOURCES})
 # -----------------------------------------------------------------------------
 # Target include directories
 # -----------------------------------------------------------------------------
-# Include HDPS headers, including system data plugins
+# Include ManiVault headers, including system data plugins
 target_include_directories(${UMAPANALYSIS} PRIVATE "${MV_INSTALL_DIR}/$<CONFIGURATION>/include/")
 
 # -----------------------------------------------------------------------------
@@ -121,6 +121,7 @@ target_link_libraries(${UMAPANALYSIS} PRIVATE "${POINTDATA_LINK_LIBRARY}")
 
 if(USE_OPENMP AND OpenMP_CXX_FOUND)
     message(STATUS "Link ${UMAPANALYSIS} to OpenMP")
+    target_compile_definitions(${UMAPANALYSIS} PRIVATE USE_OPENMP)
     if(MSVC)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /openmp:llvm")
         message(STATUS "Using /openmp:llvm for MSVC")
