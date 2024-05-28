@@ -5,7 +5,7 @@ KnnSettingsAction::KnnSettingsAction(QObject* parent) :
     _knnParameters(),
     _knnAlgorithm(this, "Algorithm"),
     _kAction(this, "Number kNN"),
-    _multithreadActions(this, "Use multithread", true),
+    _multithreadActions(this, "Use multithreading", true),
     _numTreesAction(this, "Annoy Trees"),
     _numChecksAction(this, "Annoy Checks"),
     _mAction(this, "HNSW M"),
@@ -40,8 +40,6 @@ KnnSettingsAction::KnnSettingsAction(QObject* parent) :
 #ifndef NDEBUG
     _multithreadActions.setChecked(false);
 #endif // !NDEBUG
-
-    _multithreadActions.setChecked(false);
 
     const auto updateKnnAlgorithm = [this]() -> void {
         if(_knnAlgorithm.getCurrentIndex() == 0)

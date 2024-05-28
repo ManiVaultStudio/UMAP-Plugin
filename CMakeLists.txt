@@ -66,6 +66,8 @@ set(UMAPANALYSIS_SOURCES
     src/SettingsAction.cpp
     src/KnnSettingsAction.h
     src/KnnSettingsAction.cpp
+    src/AdvancedSettingsAction.h
+    src/AdvancedSettingsAction.cpp
     src/UMAPAnalysisPlugin.json
 )
 

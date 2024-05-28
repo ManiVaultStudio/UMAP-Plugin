@@ -57,12 +57,13 @@ static void normalizData(std::vector<scalar_t>& data) {
         data[i] *= norm;
 }
 
-
 UMAPAnalysisPlugin::UMAPAnalysisPlugin(const PluginFactory* factory) :
     AnalysisPlugin(factory),
     _settingsAction(this),
     _knnSettingsAction(this),
+    _advSettingsAction(this),
     _outDimensions(2),
+    _numPoints(0),
     _outputPoints(nullptr),
     _umapWorker(),
     _workerThread(nullptr)
@@ -92,21 +93,38 @@ void UMAPAnalysisPlugin::init()
     // Create UMAP output dataset (a points dataset which is derived from the input points dataset) and set the output dataset
     setOutputDataset(mv::data().createDerivedDataset("UMAP Embedding", getInputDataset(), getInputDataset()));
 
-    const Dataset<Points> inputPoints = getInputDataset<Points>();
-    _outputPoints = getOutputDataset<Points>();
+    _outputPoints   = getOutputDataset<Points>();
+    _numPoints      = getInputDataset<Points>()->getNumPoints();
 
-    std::vector<scalar_t> initEmbeddingValues;
-    initEmbeddingValues.resize(inputPoints->getNumPoints() * static_cast<size_t>(_outDimensions));
-    _outputPoints->setData(initEmbeddingValues.data(), initEmbeddingValues.size() / _outDimensions, _outDimensions);
-    events().notifyDatasetDataChanged(_outputPoints);
+    auto initEmbeddingsAndDimensions = [this](uint32_t numPoints) {
+        std::vector<scalar_t> initEmbeddingValues;
+        initEmbeddingValues.resize(numPoints * static_cast<size_t>(_outDimensions));
+        _outputPoints->setData(initEmbeddingValues.data(), initEmbeddingValues.size() / _outDimensions, _outDimensions);
+        events().notifyDatasetDataChanged(_outputPoints);
 
-    // Set the dimension names as visible in the GUI
-    _outputPoints->setDimensionNames({ "UMAP x", "UMAP y" });
-    events().notifyDatasetDataDimensionsChanged(_outputPoints);
+        // Set the dimension names as visible in the GUI
+        if(_outDimensions == 2)
+            _outputPoints->setDimensionNames({ "UMAP x", "UMAP y" });
+        else if (_outDimensions == 3)
+            _outputPoints->setDimensionNames({ "UMAP x", "UMAP y", "UMAP z" });
+        else
+        {
+            std::vector<QString> dimNames;
+            for (int i = 1; i <= _outDimensions; ++i)
+                dimNames.push_back(QString("UMAP %1").arg(i));
+            
+            _outputPoints->setDimensionNames(dimNames);
+        }
+
+        events().notifyDatasetDataDimensionsChanged(_outputPoints);
+        };
+
+    initEmbeddingsAndDimensions(_numPoints);
 
     // Add settings to UI
     _outputPoints->addAction(_settingsAction);
     _outputPoints->addAction(_knnSettingsAction);
+    _outputPoints->addAction(_advSettingsAction);
     
     // Automatically focus on the UMAP data set
     _outputPoints->getDataHierarchyItem().select();
@@ -116,11 +134,11 @@ void UMAPAnalysisPlugin::init()
     _settingsAction.getCurrentEpochAction().setString(QString::number(0));
 
     // Compute suggested number of epoch
-    _settingsAction.getNumberOfEpochsAction().setValue(umappp::choose_num_epochs(-1, inputPoints->getNumPoints()));
+    _settingsAction.getNumberOfEpochsAction().setValue(umappp::choose_num_epochs(-1, _numPoints));
 
     // Create UMAP worker, which will be executed in another thread
     // Start the analysis when the user clicks the start analysis push button
-    connect(&_settingsAction.getStartAction(), &mv::gui::TriggerAction::triggered, this, [this] {
+    connect(&_settingsAction.getStartAction(), &mv::gui::TriggerAction::triggered, this, [this, initEmbeddingsAndDimensions] {
 
         // Disable actions during analysis
         _settingsAction.setStarted();
@@ -130,8 +148,11 @@ void UMAPAnalysisPlugin::init()
 
         getOutputDataset()->getTask().setRunning();
 
+        _outDimensions = _settingsAction.getNumberEmbDimsAction().getValue();
+        initEmbeddingsAndDimensions(_numPoints);
+
         Dataset<Points> inputPoints = getInputDataset<Points>();
-        _umapWorker = new UMAPWorker(inputPoints, &getOutputDataset()->getTask(), _outDimensions, &_settingsAction, &_knnSettingsAction);
+        _umapWorker = new UMAPWorker(inputPoints, &getOutputDataset()->getTask(), _outDimensions, &_settingsAction, &_knnSettingsAction, &_advSettingsAction);
 
         _umapWorker->changeThread(&_workerThread);
 
@@ -170,7 +191,7 @@ void UMAPAnalysisPlugin::init()
 /// UMAPWorker ///
 /// ////////// ///
 
-UMAPWorker::UMAPWorker(Dataset<Points>& inputPoints, DatasetTask* parentTask, int outDim, SettingsAction* settings, KnnSettingsAction* knnSettings):
+UMAPWorker::UMAPWorker(Dataset<Points>& inputPoints, DatasetTask* parentTask, int outDim, SettingsAction* settings, KnnSettingsAction* knnSettings, AdvancedSettingsAction* advSettings):
     _umap(),
     _shouldStop(false),
     _inputDataset(inputPoints),
@@ -178,6 +199,7 @@ UMAPWorker::UMAPWorker(Dataset<Points>& inputPoints, DatasetTask* parentTask, in
     _parentTask(parentTask),
     _settingsAction(settings),
     _knnSettingsAction(knnSettings),
+    _advSettingsAction(advSettings),
     _embedding(),
     _outDimensions(outDim)
 {
@@ -280,13 +302,30 @@ void UMAPWorker::compute()
 
     qDebug() << "UMAP: initializing...";
 
+    const auto advancedSettings = _advSettingsAction->getAdvParameters();
+
     _umap = UMAP();
+
+    // general settings
     _umap.set_num_neighbors(numNeighbors);
     _umap.set_num_epochs(numberOfEpochs);
 
     // default is spectral
     if (_settingsAction->getInitializeAction().getCurrentText() == "Random")
         _umap.set_initialize(umappp::InitMethod::RANDOM);
+
+     // advanced settings
+    _umap.set_local_connectivity(advancedSettings.local_connectivity);
+    _umap.set_bandwidth(advancedSettings.bandwidth);
+    _umap.set_mix_ratio(advancedSettings.mix_ratio);
+    _umap.set_spread(advancedSettings.spread);
+    _umap.set_min_dist(advancedSettings.min_dist);
+    _umap.set_a(advancedSettings.a);
+    _umap.set_b(advancedSettings.b);
+    _umap.set_repulsion_strength(advancedSettings.repulsion_strength);
+    _umap.set_learning_rate(advancedSettings.learning_rate);
+    _umap.set_negative_sample_rate(advancedSettings.negative_sample_rate);
+    _umap.set_seed(advancedSettings.seed);
 
     auto status = std::make_unique<UMAP::Status>(_umap.initialize(nearestNeighbors, _outDimensions, _embedding.data()));
 

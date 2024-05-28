@@ -91,7 +91,7 @@ public: // Action getters
     IntegralAction& getEfAction() { return _efAction; };
 
 protected:
-    KnnParameters           _knnParameters;             /** Pointer to Knn parameters */
+    KnnParameters           _knnParameters;             /** Knn parameters */
 
     OptionAction            _knnAlgorithm;              /** Annoy or HNSW */
     IntegralAction          _kAction;                   /** Number of kNN */

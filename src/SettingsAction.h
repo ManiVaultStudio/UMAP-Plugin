@@ -91,10 +91,12 @@ public: // Action getters
     TriggerAction& getStartAction() { return _startStopActions.getStartComputationAction(); }
     TriggerAction& getStopAction() { return _startStopActions.getStopComputationAction(); }
     OptionAction& getInitializeAction() { return _initializeActions; }
+    IntegralAction& getNumberEmbDimsAction() { return _numberEmbDimsAction; }
 
 public:
     StringAction        _currentEpochAction;            /** Current epoch string  */
-    IntegralAction      _numberOfEpochsAction;          /** Number of iterations */
+    IntegralAction      _numberOfEpochsAction;          /** Number of epocs */
     ButtonsGroupAction  _startStopActions;              /** Buttons that control start and top of computation */
     OptionAction        _initializeActions;             /** How to initialize the embedding */
+    IntegralAction      _numberEmbDimsAction;           /** Number of emebdding dimenisons */
 };

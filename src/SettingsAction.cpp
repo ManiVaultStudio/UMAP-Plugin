@@ -3,9 +3,10 @@
 SettingsAction::SettingsAction(QObject* parent) :
     GroupAction(parent, "SettingsAction", true),
     _currentEpochAction(this, "Epoch"),
-    _numberOfEpochsAction(this, "Epochs", 0, 10000, 500),
+    _numberOfEpochsAction(this, "Epochs", 0, 5000, 500),
     _startStopActions(this),
-    _initializeActions(this, "Initialization", {"Spectral", "Random"})
+    _initializeActions(this, "Initialization", {"Spectral", "Random"}),
+    _numberEmbDimsAction(this, "Emb dims", 1, 10, 2) // Max may be increased up to data dim
 {
     setText("UMAP Settings");
 
@@ -15,14 +16,15 @@ SettingsAction::SettingsAction(QObject* parent) :
     _numberOfEpochsAction.setToolTip("Number of epochs to compute");
     _startStopActions.setToolTip("Computation control");
     _initializeActions.setToolTip("Use spectral decomposition of the graph Laplacian or random initialization");
+    _numberEmbDimsAction.setToolTip("Number of embedding output dimensions");
 
     _initializeActions.setCurrentIndex(0);
 
     addAction(&_currentEpochAction);
     addAction(&_numberOfEpochsAction);
-    addAction(&_startStopActions);
     addAction(&_initializeActions);
-
+    addAction(&_numberEmbDimsAction);
+    addAction(&_startStopActions);
 }
 
 /// ////////////////// ///
