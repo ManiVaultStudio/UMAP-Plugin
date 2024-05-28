@@ -1,4 +1,4 @@
-# UMAP Plugin  [![Actions Status](https://github.com/ManiVaultStudio/UMAP-Plugin/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/ManiVaultStudio/SpectralViewPlugin/actions)
+# UMAP Plugin  [![Actions Status](https://github.com/ManiVaultStudio/UMAP-Plugin/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/ManiVaultStudio/UMAP-Plugin/actions)
 
 UMAP Analysis plugin for the [ManiVault](https://github.com/ManiVaultStudio/core) visual analytics framework based on [LTLA/umappp](https://github.com/LTLA/umappp).
 
