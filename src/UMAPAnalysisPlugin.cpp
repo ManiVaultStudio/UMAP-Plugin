@@ -90,12 +90,6 @@ void UMAPAnalysisPlugin::deleteWorker()
 
 void UMAPAnalysisPlugin::init()
 {
-    // Create UMAP output dataset (a points dataset which is derived from the input points dataset) and set the output dataset
-    setOutputDataset(mv::data().createDerivedDataset("UMAP Embedding", getInputDataset(), getInputDataset()));
-
-    _outputPoints   = getOutputDataset<Points>();
-    _numPoints      = getInputDataset<Points>()->getNumPoints();
-
     auto initEmbeddingsAndDimensions = [this](uint32_t numPoints) {
         std::vector<scalar_t> initEmbeddingValues;
         initEmbeddingValues.resize(numPoints * static_cast<size_t>(_outDimensions));
@@ -103,7 +97,7 @@ void UMAPAnalysisPlugin::init()
         events().notifyDatasetDataChanged(_outputPoints);
 
         // Set the dimension names as visible in the GUI
-        if(_outDimensions == 2)
+        if (_outDimensions == 2)
             _outputPoints->setDimensionNames({ "UMAP x", "UMAP y" });
         else if (_outDimensions == 3)
             _outputPoints->setDimensionNames({ "UMAP x", "UMAP y", "UMAP z" });
@@ -112,14 +106,24 @@ void UMAPAnalysisPlugin::init()
             std::vector<QString> dimNames;
             for (int i = 1; i <= _outDimensions; ++i)
                 dimNames.push_back(QString("UMAP %1").arg(i));
-            
+
             _outputPoints->setDimensionNames(dimNames);
         }
 
         events().notifyDatasetDataDimensionsChanged(_outputPoints);
         };
 
-    initEmbeddingsAndDimensions(_numPoints);
+    // we do not need to create a new output when loading this plugin from a project
+    if (!outputDataInit())
+    {
+        // Create UMAP output dataset (a points dataset which is derived from the input points dataset) and set the output dataset
+        setOutputDataset(mv::data().createDerivedDataset("UMAP Embedding", getInputDataset(), getInputDataset()));
+
+        initEmbeddingsAndDimensions(getInputDataset<Points>()->getNumPoints());
+    }
+
+    _outputPoints   = getOutputDataset<Points>();
+    _numPoints      = getInputDataset<Points>()->getNumPoints();
 
     // Add settings to UI
     _outputPoints->addAction(_settingsAction);
@@ -184,6 +188,30 @@ void UMAPAnalysisPlugin::init()
         }, 
         Qt::DirectConnection);
 
+}
+
+void UMAPAnalysisPlugin::fromVariantMap(const QVariantMap& variantMap)
+{
+    AnalysisPlugin::fromVariantMap(variantMap);
+
+    mv::util::variantMapMustContain(variantMap, "UMAP Settings");
+    mv::util::variantMapMustContain(variantMap, "Knn Settings");
+    mv::util::variantMapMustContain(variantMap, "Advanced Settings");
+
+    _settingsAction.fromParentVariantMap(variantMap);
+    _knnSettingsAction.fromParentVariantMap(variantMap);
+    _advSettingsAction.fromParentVariantMap(variantMap);
+}
+
+QVariantMap UMAPAnalysisPlugin::toVariantMap() const
+{
+    QVariantMap variantMap = AnalysisPlugin::toVariantMap();
+
+    _settingsAction.insertIntoVariantMap(variantMap);
+    _knnSettingsAction.insertIntoVariantMap(variantMap);
+    _advSettingsAction.insertIntoVariantMap(variantMap);
+
+    return variantMap;
 }
 
 

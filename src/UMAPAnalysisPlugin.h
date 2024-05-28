@@ -1,3 +1,13 @@
+/**
+ * UMAP analysis plugin class
+ *
+ * This analysis plugin class provides acces to the UMAP implementation from
+ * https://github.com/LTLA/umappp as an analysis plugin in ManiVault
+ *
+ * UMAP is a neighborhood-based dimensionality reduction similar to t-SNE
+ *
+ * @authors T. Höllt, A.Vieth
+ */
 #pragma once
 
 #include <AnalysisPlugin.h>
@@ -22,6 +32,10 @@ using namespace mv;
 using scalar_t = float;
 using UMAP = umappp::Umap<scalar_t>;
 
+/**
+ * UMAP worker class 
+ * runs umap computation in non-UI thread
+ */
 class UMAPWorker : public QObject
 {
     Q_OBJECT
@@ -62,14 +76,7 @@ private:
 };
 
 /**
- * UMAP analysis plugin class
- *
- * This analysis plugin class provides acces to the UMAP implementation from
- * https://github.com/LTLA/umappp as an analysis plugin in HDPS
- *
- * UMAP is a neighborhood-based dimensionality reduction similar to t-SNE
- *
- * @authors T. Höllt, A.Vieth
+ * UMAP Analysis plugin class
  */
 class UMAPAnalysisPlugin : public AnalysisPlugin
 {
@@ -88,6 +95,20 @@ private:
 signals:
     void startWorker();
     void stopWorker();
+
+public: // Serialization
+
+    /**
+     * Load plugin from variant map
+     * @param Variant map representation of the plugin
+     */
+    Q_INVOKABLE void fromVariantMap(const QVariantMap& variantMap) override;
+
+    /**
+     * Save plugin to variant map
+     * @return Variant map representation of the plugin
+     */
+    Q_INVOKABLE QVariantMap toVariantMap() const override;
 
 private:
     SettingsAction          _settingsAction;    /** General settings */

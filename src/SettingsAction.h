@@ -50,9 +50,9 @@ protected:
 };
 
 /**
- * UMAPSettingsAction class
+ * SettingsAction
  * 
- * Class that houses settings for the UMAP analysis plugin
+ * Class that houses general settings for the UMAP analysis plugin
  *
  */
 class SettingsAction : public GroupAction
@@ -93,7 +93,21 @@ public: // Action getters
     OptionAction& getInitializeAction() { return _initializeActions; }
     IntegralAction& getNumberEmbDimsAction() { return _numberEmbDimsAction; }
 
-public:
+public: // Serialization
+
+    /**
+     * Load plugin from variant map
+     * @param Variant map representation of the plugin
+     */
+    void fromVariantMap(const QVariantMap& variantMap) override;
+
+    /**
+     * Save plugin to variant map
+     * @return Variant map representation of the plugin
+     */
+    QVariantMap toVariantMap() const override;
+
+protected:
     StringAction        _currentEpochAction;            /** Current epoch string  */
     IntegralAction      _numberOfEpochsAction;          /** Number of epocs */
     ButtonsGroupAction  _startStopActions;              /** Buttons that control start and top of computation */

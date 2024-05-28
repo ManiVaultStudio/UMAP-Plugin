@@ -15,6 +15,9 @@ AdvancedSettingsAction::AdvancedSettingsAction(QObject* parent) :
     _negative_sample_rate(this, "negative sample rate"),
     _seed(this, "seed")
 {
+    setText("Advanced Settings");
+    setSerializationName("Advanced Settings");
+
     addAction(&_local_connectivity);
     addAction(&_bandwidth);
     addAction(&_mix_ratio);
@@ -162,4 +165,40 @@ AdvancedSettingsAction::AdvancedSettingsAction(QObject* parent) :
     update_negative_sample_rate();
     update_seed();
     updateReadOnly();
+}
+
+void AdvancedSettingsAction::fromVariantMap(const QVariantMap& variantMap)
+{
+    GroupAction::fromVariantMap(variantMap);
+
+    _local_connectivity.fromParentVariantMap(variantMap);
+    _bandwidth.fromParentVariantMap(variantMap);
+    _mix_ratio.fromParentVariantMap(variantMap);
+    _spread.fromParentVariantMap(variantMap);
+    _min_dist.fromParentVariantMap(variantMap);
+    _a.fromParentVariantMap(variantMap);
+    _b.fromParentVariantMap(variantMap);
+    _repulsion_strength.fromParentVariantMap(variantMap);
+    _learning_rate.fromParentVariantMap(variantMap);
+    _negative_sample_rate.fromParentVariantMap(variantMap);
+    _seed.fromParentVariantMap(variantMap);
+}
+
+QVariantMap AdvancedSettingsAction::toVariantMap() const
+{
+    QVariantMap variantMap = GroupAction::toVariantMap();
+
+    _local_connectivity.insertIntoVariantMap(variantMap);
+    _bandwidth.insertIntoVariantMap(variantMap);
+    _mix_ratio.insertIntoVariantMap(variantMap);
+    _spread.insertIntoVariantMap(variantMap);
+    _min_dist.insertIntoVariantMap(variantMap);
+    _a.insertIntoVariantMap(variantMap);
+    _b.insertIntoVariantMap(variantMap);
+    _repulsion_strength.insertIntoVariantMap(variantMap);
+    _learning_rate.insertIntoVariantMap(variantMap);
+    _negative_sample_rate.insertIntoVariantMap(variantMap);
+    _seed.insertIntoVariantMap(variantMap);
+
+    return variantMap;
 }

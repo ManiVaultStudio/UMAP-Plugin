@@ -90,6 +90,20 @@ public: // Action getters
     IntegralAction& getMAction() { return _mAction; };
     IntegralAction& getEfAction() { return _efAction; };
 
+public: // Serialization
+
+    /**
+     * Load plugin from variant map
+     * @param Variant map representation of the plugin
+     */
+    void fromVariantMap(const QVariantMap& variantMap) override;
+
+    /**
+     * Save plugin to variant map
+     * @return Variant map representation of the plugin
+     */
+    QVariantMap toVariantMap() const override;
+
 protected:
     KnnParameters           _knnParameters;             /** Knn parameters */
 

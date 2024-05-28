@@ -9,6 +9,7 @@ SettingsAction::SettingsAction(QObject* parent) :
     _numberEmbDimsAction(this, "Emb dims", 1, 10, 2) // Max may be increased up to data dim
 {
     setText("UMAP Settings");
+    setSerializationName("UMAP Settings");
 
     _currentEpochAction.setEnabled(false);
 
@@ -25,6 +26,28 @@ SettingsAction::SettingsAction(QObject* parent) :
     addAction(&_initializeActions);
     addAction(&_numberEmbDimsAction);
     addAction(&_startStopActions);
+}
+
+void SettingsAction::fromVariantMap(const QVariantMap& variantMap)
+{
+    GroupAction::fromVariantMap(variantMap);
+
+    _currentEpochAction.fromParentVariantMap(variantMap);
+    _numberOfEpochsAction.fromParentVariantMap(variantMap);
+    _initializeActions.fromParentVariantMap(variantMap);
+    _numberEmbDimsAction.fromParentVariantMap(variantMap);
+}
+
+QVariantMap SettingsAction::toVariantMap() const
+{
+    QVariantMap variantMap = GroupAction::toVariantMap();
+
+    _currentEpochAction.insertIntoVariantMap(variantMap);
+    _numberOfEpochsAction.insertIntoVariantMap(variantMap);
+    _initializeActions.insertIntoVariantMap(variantMap);
+    _numberEmbDimsAction.insertIntoVariantMap(variantMap);
+
+    return variantMap;
 }
 
 /// ////////////////// ///

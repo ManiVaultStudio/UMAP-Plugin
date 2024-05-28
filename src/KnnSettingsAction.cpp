@@ -11,6 +11,9 @@ KnnSettingsAction::KnnSettingsAction(QObject* parent) :
     _mAction(this, "HNSW M"),
     _efAction(this, "HNSW ef")
 {
+    setText("Knn Settings");
+    setSerializationName("Knn Settings");
+
     addAction(&_knnAlgorithm);
     addAction(&_kAction);
 
@@ -115,4 +118,32 @@ KnnSettingsAction::KnnSettingsAction(QObject* parent) :
     updateM();
     updateEf();
     updateReadOnly();
+}
+
+void KnnSettingsAction::fromVariantMap(const QVariantMap& variantMap)
+{
+    GroupAction::fromVariantMap(variantMap);
+
+    _knnAlgorithm.fromParentVariantMap(variantMap);
+    _kAction.fromParentVariantMap(variantMap);
+    _multithreadActions.fromParentVariantMap(variantMap);
+    _numTreesAction.fromParentVariantMap(variantMap);
+    _numChecksAction.fromParentVariantMap(variantMap);
+    _mAction.fromParentVariantMap(variantMap);
+    _efAction.fromParentVariantMap(variantMap);
+}
+
+QVariantMap KnnSettingsAction::toVariantMap() const
+{
+    QVariantMap variantMap = GroupAction::toVariantMap();
+
+    _knnAlgorithm.insertIntoVariantMap(variantMap);
+    _kAction.insertIntoVariantMap(variantMap);
+    _multithreadActions.insertIntoVariantMap(variantMap);
+    _numTreesAction.insertIntoVariantMap(variantMap);
+    _numChecksAction.insertIntoVariantMap(variantMap);
+    _mAction.insertIntoVariantMap(variantMap);
+    _efAction.insertIntoVariantMap(variantMap);
+
+    return variantMap;
 }
