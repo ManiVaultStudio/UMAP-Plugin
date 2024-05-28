@@ -411,6 +411,16 @@ QIcon UMAPAnalysisPluginFactory::getIcon(const QColor& color /*= Qt::black*/) co
     return mv::gui::createPluginIcon("UMAP", color);
 }
 
+QUrl UMAPAnalysisPluginFactory::getReadmeMarkdownUrl() const
+{
+    return QUrl("https://raw.githubusercontent.com/ManiVaultStudio/UMAP-Analysis/README.md");
+}
+
+QUrl UMAPAnalysisPluginFactory::getRespositoryUrl() const
+{
+    return QUrl("https://github.com/ManiVaultStudio/UMAP-Analysis");
+}
+
 AnalysisPlugin* UMAPAnalysisPluginFactory::produce()
 {
     return new UMAPAnalysisPlugin(this);

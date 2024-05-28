@@ -140,6 +140,18 @@ public:
 
     QIcon getIcon(const QColor& color = Qt::black) const override;
 
+    /**
+     * Get the read me markdown file URL
+     * @return URL of the read me markdown file
+     */
+    QUrl getReadmeMarkdownUrl() const override;
+
+    /**
+     * Get the URL of the GitHub repository
+     * @return URL of the GitHub repository
+     */
+    QUrl getRespositoryUrl() const override;
+
     /** Creates an instance of the UMAP analysis plugin */
     AnalysisPlugin* produce() override;
 
