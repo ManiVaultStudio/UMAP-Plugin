@@ -2,6 +2,11 @@
 
 UMAP Analysis plugin for the [ManiVault](https://github.com/ManiVaultStudio/core) visual analytics framework based on [LTLA/umappp](https://github.com/LTLA/umappp).
 
+Clone the repo, all dependencies will be downloaded during CMake configuration:
+```
+git clone https://github.com/ManiVaultStudio/UMAP-Plugin.git
+```
+
 <p align="center">
   <img src="https://github.com/ManiVaultStudio/UMAP-Plugin/assets/58806453/e8541f15-2dbd-44b6-90a6-fe608e19b076" alt="UMAP embedding of MNIST data" align="middle" width="35%">
   <img src="https://github.com/ManiVaultStudio/UMAP-Plugin/assets/58806453/d7527b47-e196-4b62-bb0b-cb22f2fc1132" alt="UMAP embedding of MNIST data" align="middle" width="43%">  </br>
