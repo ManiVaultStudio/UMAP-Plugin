@@ -72,10 +72,6 @@ class KnnSettingsAction : public GroupAction
 {
 public:
 
-    /**
-     * Constructor
-     * @param tsneSettingsAction Reference to TSNE settings action
-     */
     KnnSettingsAction(QObject* parent = nullptr);
 
     KnnParameters getKnnParameters() const { return _knnParameters; }
