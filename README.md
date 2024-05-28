@@ -2,8 +2,14 @@
 
 UMAP Analysis plugin for the [ManiVault](https://github.com/ManiVaultStudio/core) visual analytics framework based on [LTLA/umappp](https://github.com/LTLA/umappp).
 
+<p align="center">
+  <img src="https://github.com/thoellt/UMAP-Analysis/assets/58806453/5b1b6a14-572c-4250-b975-f6a2e5c9dcd2" alt="UMAP embedding of MNIST data" align="middle" width="35%">
+  <img src="https://github.com/thoellt/UMAP-Analysis/assets/58806453/c9ab7b15-8be3-4e2a-981f-fa381eb7f731" alt="UMAP embedding of MNIST data" align="middle" width="43%">  </br>
+  Left: UMAP embedding of 10k MNIST test data. Right: UMAP embedding of Indian Pines data in 3 dimensions, with (top) showing x and y and (bottom) showing y and z embedding dimensions as well as (right) a re-coloring of the Indian Pines image based on the 3d embedding space interpreted as HSV colorspace.
+</p>
 
 ## Settings
+
 Main settings:
 - `Epochs`:  Number of epochs for the gradient descent, i.e., optimization iterations. Larger values improve accuracy at the cost of computational work. For datasets with no more than 10000 observations, the number of epochs is set to 500. For larger datasets, the number of epochs decreases from 500 according to the number of cells beyond 10000, to a lower limit of 200. This choice aims to reduce computational work for very large datasets. 
 - `Initialization`: How should the initial coordinates of the embedding be obtained?
