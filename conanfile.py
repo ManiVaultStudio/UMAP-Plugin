@@ -157,6 +157,8 @@ class UMAPPluginConan(ConanFile):
                 "cmake",
                 "--install",
                 self.build_folder,
+                "--component",
+                "PLUGIN",
                 "--config",
                 "Debug",
                 "--prefix",
@@ -167,6 +169,8 @@ class UMAPPluginConan(ConanFile):
             [
                 "cmake",
                 "--install",
+                "--component",
+                "PLUGIN",
                 self.build_folder,
                 "--config",
                 "Release",
