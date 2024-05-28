@@ -31,6 +31,10 @@ include(FetchContent)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(CMakeCheckSetAVX)
 
+# We do not need these here
+set(CMAKE_Fortran_COMPILER_WORKS 0 CACHE BOOL "" FORCE)
+set(CMAKE_Fortran_COMPILER "" CACHE FILEPATH "" FORCE)
+
 # -----------------------------------------------------------------------------
 # Set install directory
 # -----------------------------------------------------------------------------
