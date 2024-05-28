@@ -417,12 +417,12 @@ QIcon UMAPAnalysisPluginFactory::getIcon(const QColor& color /*= Qt::black*/) co
 
 QUrl UMAPAnalysisPluginFactory::getReadmeMarkdownUrl() const
 {
-    return QUrl("https://raw.githubusercontent.com/ManiVaultStudio/UMAP-Analysis/README.md");
+    return QUrl("https://raw.githubusercontent.com/ManiVaultStudio/UMAP-Plugin/README.md");
 }
 
 QUrl UMAPAnalysisPluginFactory::getRespositoryUrl() const
 {
-    return QUrl("https://github.com/ManiVaultStudio/UMAP-Analysis");
+    return QUrl("https://github.com/ManiVaultStudio/UMAP-Plugin");
 }
 
 AnalysisPlugin* UMAPAnalysisPluginFactory::produce()
