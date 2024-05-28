@@ -31,6 +31,10 @@ include(FetchContent)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(CMakeCheckSetAVX)
 
+# We do not need these here
+set(CMAKE_Fortran_COMPILER_WORKS 0 CACHE BOOL "" FORCE)
+set(CMAKE_Fortran_COMPILER "" CACHE FILEPATH "" FORCE)
+
 # -----------------------------------------------------------------------------
 # Set install directory
 # -----------------------------------------------------------------------------
@@ -46,6 +50,10 @@ file(TO_CMAKE_PATH ${MV_INSTALL_DIR} MV_INSTALL_DIR)
 # -----------------------------------------------------------------------------
 find_package(Qt6 COMPONENTS Widgets WebEngineWidgets Concurrent REQUIRED)
 find_package(OpenMP)
+
+# avoid several of eigens cmake config steps
+set(BUILD_TESTING OFF CACHE BOOL "Disable testing for Eigen" FORCE)
+set(EIGEN_BUILD_DOC OFF CACHE BOOL "Enable creation of Eigen documentation" FORCE)
 
 FetchContent_Declare(
   umappp 
