@@ -41,14 +41,14 @@ Q_PLUGIN_METADATA(IID "studio.manivault.UMAPAnalysisPlugin")
 using namespace mv;
 using namespace mv::plugin;
 
-using knnMatrix         = knncolle::SimpleMatrix<integer_t, integer_t, scalar_t>;
-using knnBase           = knncolle::Prebuilt<integer_t, integer_t, scalar_t>;
+using DataMatrix        = knncolle::SimpleMatrix<integer_t, integer_t, scalar_t>;
+using KnnBase           = knncolle::Prebuilt<integer_t, integer_t, scalar_t>;
 
-using knnAnnoyEuclidean = knncolle_annoy::AnnoyBuilder<Annoy::Euclidean, knnMatrix, scalar_t, integer_t, scalar_t>;
-using knnAnnoyAngular   = knncolle_annoy::AnnoyBuilder<Annoy::Angular, knnMatrix, scalar_t, integer_t, scalar_t>;
-using knnAnnoyDot       = knncolle_annoy::AnnoyBuilder<Annoy::DotProduct, knnMatrix, scalar_t, integer_t, scalar_t>;
+using KnnAnnoyEuclidean = knncolle_annoy::AnnoyBuilder<Annoy::Euclidean, DataMatrix, scalar_t, integer_t, scalar_t>;
+using KnnAnnoyAngular   = knncolle_annoy::AnnoyBuilder<Annoy::Angular, DataMatrix, scalar_t, integer_t, scalar_t>;
+using KnnAnnoyDot       = knncolle_annoy::AnnoyBuilder<Annoy::DotProduct, DataMatrix, scalar_t, integer_t, scalar_t>;
 
-using knnHnsw           = knncolle_hnsw::HnswBuilder<knnMatrix, scalar_t, scalar_t>;
+using KnnHnsw           = knncolle_hnsw::HnswBuilder<DataMatrix, scalar_t, scalar_t>;
 
 static void normalizeData(std::vector<scalar_t>& data) {
     float norm = 0.0f;
@@ -308,8 +308,8 @@ void UMAPWorker::compute()
 
         qDebug() << "UMAP: compute knn: " << numNeighbors << " neighbors";
 
-        std::unique_ptr<knnBase> searcher;
-        auto mat = knnMatrix(nDim, numPoints, data.data());
+        std::unique_ptr<KnnBase> searcher;
+        auto mat = DataMatrix(nDim, numPoints, data.data());
 
         if (knnParams.getKnnAlgorithm() == KnnLibrary::ANNOY) {
             knncolle_annoy::AnnoyOptions opt;
@@ -317,11 +317,11 @@ void UMAPWorker::compute()
             opt.search_mult = knnParams.getAnnoyNumChecks();
 
             if (knnParams.getKnnDistanceMetric() == KnnMetric::COSINE)
-                searcher = knnAnnoyAngular(opt).build_unique(mat);
+                searcher = KnnAnnoyAngular(opt).build_unique(mat);
             else if (knnParams.getKnnDistanceMetric() == KnnMetric::DOT)
-                searcher = knnAnnoyDot(opt).build_unique(mat);
+                searcher = KnnAnnoyDot(opt).build_unique(mat);
             else
-                searcher = knnAnnoyEuclidean(opt).build_unique(mat);
+                searcher = KnnAnnoyEuclidean(opt).build_unique(mat);
         }
         else // knnParams.getKnnAlgorithm() == KnnLibrary::HNSW
         {
@@ -333,17 +333,17 @@ void UMAPWorker::compute()
             if (knnParams.getKnnDistanceMetric() == KnnMetric::COSINE)
             {
                 normalizeData(data);
-                searcher = knnHnsw(opt).build_unique(mat);
+                searcher = KnnHnsw(opt).build_unique(mat);
             }
             else if (knnParams.getKnnDistanceMetric() == KnnMetric::DOT)
             {
                 opt.distance_options.create = [](int dim) -> hnswlib::SpaceInterface<float>*{
                     return new hnswlib::InnerProductSpace(dim);
                 };
-                searcher = knnHnsw(opt).build_unique(mat);
+                searcher = KnnHnsw(opt).build_unique(mat);
             }
             else // Euclidean distance
-                searcher = knnHnsw(opt).build_unique(mat);
+                searcher = KnnHnsw(opt).build_unique(mat);
         }
 
         nearestNeighbors = knncolle::find_nearest_neighbors<integer_t, integer_t, scalar_t>(*searcher, numNeighbors, nThreads);
