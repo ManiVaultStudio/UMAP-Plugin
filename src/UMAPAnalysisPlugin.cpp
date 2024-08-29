@@ -12,6 +12,8 @@
 #include <hnswlib/space_ip.h>
 #include <hnswlib/hnswlib.h>
 
+// MSVC does not support all openmp functionality
+// that the umappp tries to use
 #ifdef _OPENMP
 #define _OPENMP_CACHED _OPENMP
 #undef _OPENMP
@@ -26,11 +28,11 @@
 #include <QDebug>
 #include <QtCore>
 
+#include <cmath>
+
 #ifdef _OPENMP
 #include <omp.h>
 #endif
-
-#include <cmath>
 
 Q_PLUGIN_METADATA(IID "studio.manivault.UMAPAnalysisPlugin")
 
