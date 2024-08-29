@@ -1,6 +1,6 @@
 # UMAP Plugin  [![Actions Status](https://github.com/ManiVaultStudio/UMAP-Plugin/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/ManiVaultStudio/UMAP-Plugin/actions)
 
-UMAP Analysis plugin for the [ManiVault](https://github.com/ManiVaultStudio/core) visual analytics framework based on [LTLA/umappp](https://github.com/LTLA/umappp).
+UMAP Analysis plugin for the [ManiVault](https://github.com/ManiVaultStudio/core) visual analytics framework based on the [libscran/umappp](https://github.com/libscran/umappp) library.
 
 Clone the repo, all dependencies will be downloaded during CMake configuration:
 ```
@@ -43,5 +43,5 @@ knn Settings:
 - (HNSW): M & ef: are detailed in the respective [docs](https://github.com/nmslib/hnswlib/blob/master/ALGO_PARAMS.md#hnsw-algorithm-parameters)
 
 ## References
-- [LTLA/umappp](https://github.com/LTLA/umappp): Aaron Lun, BSD 2-Clause License
+- [libscran/umappp](https://github.com/libscran/umappp): Aaron Lun, BSD 2-Clause License
 - UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction, McInnes L, Healy J, Melville J (2020), [arxiv: 1802.03426](https://arxiv.org/abs/1802.03426)

@@ -18,19 +18,16 @@
 #include "KnnSettingsAction.h"
 #include "SettingsAction.h"
 
-#define UMAPPP_CUSTOM_NEIGHBORS // due to an older hsnw version in knncolle
-#include "umappp/Umap.hpp"
-#undef UMAPPP_CUSTOM_NEIGHBORS
-
 #include <QThread>
 
+#include <cstdint>
 #include <memory>
 
 using namespace mv::plugin;
 using namespace mv;
 
+using integer_t = int32_t;
 using scalar_t = float;
-using UMAP = umappp::Umap<scalar_t>;
 
 /**
  * UMAP worker class 
@@ -59,7 +56,6 @@ signals:
     void finished();
 
 private:
-    UMAP                    _umap;              /** library */
     Dataset<Points>         _inputDataset;
 
     SettingsAction*         _settingsAction;    /** General settings */

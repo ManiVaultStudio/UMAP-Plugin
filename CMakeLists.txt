@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 3.21)
 
-option(USE_OPENMP "Use OpenMP - by default ON" ON)
-option(USE_AVX "Use AVX if available - by default ON" OFF)
+option(MV_UMAP_USE_OPENMP "Use OpenMP - by default ON" ON)
+option(MV_UMAP_USE_AVX "Use AVX if available - by default ON" OFF)
 
 # -----------------------------------------------------------------------------
-# UMAPAnalysis Plugin
+# UMAP Analysis Plugin
 # -----------------------------------------------------------------------------
 set(UMAPANALYSIS "UMAPAnalysisPlugin")
 PROJECT(${UMAPANALYSIS} 
-        VERSION 1.0.0
+        VERSION 1.1.0
         DESCRIPTION "A ManiVault plugin that wraps LTLA/umappp"
         LANGUAGES CXX)
 
@@ -31,10 +31,6 @@ include(FetchContent)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(CMakeCheckSetAVX)
 
-# We do not need these here
-set(CMAKE_Fortran_COMPILER_WORKS 0 CACHE BOOL "" FORCE)
-set(CMAKE_Fortran_COMPILER "" CACHE FILEPATH "" FORCE)
-
 # -----------------------------------------------------------------------------
 # Dependencies
 # -----------------------------------------------------------------------------
@@ -49,11 +45,27 @@ set(EIGEN_BUILD_DOC OFF CACHE BOOL "Enable creation of Eigen documentation" FORC
 
 FetchContent_Declare(
   umappp 
-  GIT_REPOSITORY https://github.com/LTLA/umappp
-  GIT_TAG ff423214adb7aa7128833500f17b42b0fbe3d4d0 # master as of 24/05/24
+  GIT_REPOSITORY https://github.com/libscran/umappp
+  GIT_TAG v2.0.1
 )
 
 FetchContent_MakeAvailable(umappp)
+
+FetchContent_Declare(
+  knncolle_hnsw
+  GIT_REPOSITORY https://github.com/knncolle/knncolle_hnsw
+  GIT_TAG v0.1.0
+)
+
+FetchContent_MakeAvailable(knncolle_hnsw)
+
+FetchContent_Declare(
+  knncolle_annoy
+  GIT_REPOSITORY https://github.com/knncolle/knncolle_annoy
+  GIT_TAG v0.1.0
+)
+
+FetchContent_MakeAvailable(knncolle_annoy)
 
 # -----------------------------------------------------------------------------
 # Source files
@@ -96,7 +108,7 @@ if(MSVC)
 endif()
 
 # Instruction sets
-check_and_set_AVX(${UMAPANALYSIS} ${USE_AVX})
+check_and_set_AVX(${UMAPANALYSIS} ${MV_UMAP_USE_AVX})
 
 # -----------------------------------------------------------------------------
 # Target library linking
@@ -105,21 +117,15 @@ target_link_libraries(${UMAPANALYSIS} PRIVATE Qt6::Widgets)
 target_link_libraries(${UMAPANALYSIS} PRIVATE Qt6::WebEngineWidgets)
 target_link_libraries(${UMAPANALYSIS} PRIVATE Qt6::Concurrent)
 
-target_link_libraries(${UMAPANALYSIS} PRIVATE ltla::umappp)
+target_link_libraries(${UMAPANALYSIS} PRIVATE libscran::umappp)
+target_link_libraries(${UMAPANALYSIS} PRIVATE knncolle::knncolle_hnsw)
+target_link_libraries(${UMAPANALYSIS} PRIVATE knncolle::knncolle_annoy)
 
 target_link_libraries(${UMAPANALYSIS} PRIVATE ManiVault::Core)
 target_link_libraries(${UMAPANALYSIS} PRIVATE ManiVault::PointData)
 
-if(USE_OPENMP AND OpenMP_CXX_FOUND)
-    message(STATUS "Link ${UMAPANALYSIS} to OpenMP")
-    target_compile_definitions(${UMAPANALYSIS} PRIVATE USE_OPENMP)
-    if(MSVC)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /openmp:llvm")
-        message(STATUS "Using /openmp:llvm for MSVC")
-    else()
-        target_link_libraries(${UMAPANALYSIS} PRIVATE OpenMP::OpenMP_CXX)
-    endif()
-        
+if(${MV_UMAP_USE_OPENMP} AND OpenMP_CXX_FOUND)
+    target_link_libraries(${UMAPANALYSIS} PRIVATE OpenMP::OpenMP_CXX)
 endif()
 
 # -----------------------------------------------------------------------------
