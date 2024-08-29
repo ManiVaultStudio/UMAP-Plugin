@@ -49,21 +49,14 @@ namespace knncolle::hnsw_distances
     };
 }
 
-template<
-    class Distance_ = Annoy::Euclidean,
-    class Matrix_ = knncolle::SimpleMatrix<int, int, double>,
-    typename Float_ = double,
-    typename InternalIndex_ = typename Matrix_::index_type,
-    typename InternalData_ = float>
-
 using knnMatrix         = knncolle::SimpleMatrix<integer_t, integer_t, scalar_t>;
 using knnBase           = knncolle::Prebuilt<integer_t, integer_t, scalar_t>;
 
-using knnAnnoyEuclidean = knncolle_annoy::AnnoyBuilder<Annoy::Euclidean, knnMatrix<>, scalar_t, integer_t, scalar_t>;
-using knnAnnoyAngular   = knncolle_annoy::AnnoyBuilder<Annoy::Angular, knnMatrix<>, scalar_t, integer_t, scalar_t>;
-using knnAnnoyDot       = knncolle_annoy::AnnoyBuilder<Annoy::DotProduct, knnMatrix<>, scalar_t, integer_t, scalar_t>;
+using knnAnnoyEuclidean = knncolle_annoy::AnnoyBuilder<Annoy::Euclidean, knnMatrix, scalar_t, integer_t, scalar_t>;
+using knnAnnoyAngular   = knncolle_annoy::AnnoyBuilder<Annoy::Angular, knnMatrix, scalar_t, integer_t, scalar_t>;
+using knnAnnoyDot       = knncolle_annoy::AnnoyBuilder<Annoy::DotProduct, knnMatrix, scalar_t, integer_t, scalar_t>;
 
-using knnHnsw           = knncolle_hnsw::HnswBuilder<knnMatrix<>, scalar_t, scalar_t>;
+using knnHnsw           = knncolle_hnsw::HnswBuilder<knnMatrix, scalar_t, scalar_t>;
 
 static void normalizeData(std::vector<scalar_t>& data) {
     float norm = 0.0f;
@@ -324,7 +317,7 @@ void UMAPWorker::compute()
         qDebug() << "UMAP: compute knn: " << numNeighbors << " neighbors";
 
         std::unique_ptr<knnBase> searcher;
-        auto mat = knnMatrix<>(nDim, numPoints, data.data());
+        auto mat = knnMatrix(nDim, numPoints, data.data());
 
         if (knnParams.getKnnAlgorithm() == KnnLibrary::ANNOY) {
             knncolle_annoy::AnnoyOptions opt;
