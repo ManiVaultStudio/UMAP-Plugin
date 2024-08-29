@@ -67,7 +67,7 @@ static void normalizeData(std::vector<scalar_t>& data) {
     for (const auto& val : data)
         norm += val * val;
 
-    norm = 1.0f / (std::sqrtf(norm) + 1e-30f);
+    norm = 1.0f / (std::sqrt(norm) + 1e-30f);
 
 #pragma omp parallel
     for (std::int64_t i = 0; i < data.size(); i++)
