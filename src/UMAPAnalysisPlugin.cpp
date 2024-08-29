@@ -41,18 +41,6 @@ Q_PLUGIN_METADATA(IID "studio.manivault.UMAPAnalysisPlugin")
 using namespace mv;
 using namespace mv::plugin;
 
-namespace knncolle::hnsw_distances
-{
-    class InnerProduct : public hnswlib::InnerProductSpace {
-    public:
-        InnerProduct(size_t ndim) : hnswlib::InnerProductSpace(ndim) {}
-
-        static float normalize(float raw) {
-            return raw;
-        }
-    };
-}
-
 using knnMatrix         = knncolle::SimpleMatrix<integer_t, integer_t, scalar_t>;
 using knnBase           = knncolle::Prebuilt<integer_t, integer_t, scalar_t>;
 
