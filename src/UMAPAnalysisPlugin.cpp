@@ -437,7 +437,7 @@ QIcon UMAPAnalysisPluginFactory::getIcon(const QColor& color /*= Qt::black*/) co
 
 QUrl UMAPAnalysisPluginFactory::getReadmeMarkdownUrl() const
 {
-    return QUrl("https://raw.githubusercontent.com/ManiVaultStudio/UMAP-Plugin/README.md");
+    return QUrl("https://raw.githubusercontent.com/ManiVaultStudio/UMAP-Plugin/main/README.md");
 }
 
 QUrl UMAPAnalysisPluginFactory::getRespositoryUrl() const
