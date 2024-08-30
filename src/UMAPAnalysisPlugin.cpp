@@ -5,19 +5,34 @@
 #include <PointData/DimensionsPickerAction.h>
 #include <PointData/InfoAction.h>
 
-#pragma warning(disable:4477)       // annoy internal: print formatting warnings
-#include <annoy/annoylib.h>
+#include <knncolle/knncolle.hpp>
+#include <knncolle/find_nearest_neighbors.hpp>
+#include <knncolle_annoy/knncolle_annoy.hpp>
+#include <knncolle_hnsw/knncolle_hnsw.hpp>
 #include <hnswlib/space_ip.h>
-#include <knncolle/Annoy/Annoy.hpp>
-#include <knncolle/utils/Base.hpp>
-#include <knncolle/utils/find_nearest_neighbors.hpp>
-#include <knncolle/Hnsw/Hnsw.hpp>
-#pragma warning(default:4477)
+#include <hnswlib/hnswlib.h>
+
+// MSVC does not support all openmp functionality
+// that the umappp tries to use
+#ifdef _OPENMP
+#define _OPENMP_CACHED _OPENMP
+#undef _OPENMP
+#endif
+#pragma warning(disable:4267) // umapp internal: conversion warning
+#include <umappp/initialize.hpp>
+#include <umappp/Options.hpp>
+#pragma warning(default:4267)
+#ifdef _OPENMP_CACHED
+#define _OPENMP _OPENMP_CACHED
+#undef _OPENMP_CACHED
+#endif
 
 #include <QDebug>
 #include <QtCore>
 
-#ifdef USE_OPENMP
+#include <cmath>
+
+#ifdef _OPENMP
 #include <omp.h>
 #endif
 
@@ -26,31 +41,21 @@ Q_PLUGIN_METADATA(IID "studio.manivault.UMAPAnalysisPlugin")
 using namespace mv;
 using namespace mv::plugin;
 
-namespace knncolle::hnsw_distances
-{
-    class InnerProduct : public hnswlib::InnerProductSpace {
-    public:
-        InnerProduct(size_t ndim) : hnswlib::InnerProductSpace(ndim) {}
+using DataMatrix        = knncolle::SimpleMatrix<integer_t, integer_t, scalar_t>;
+using KnnBase           = knncolle::Prebuilt<integer_t, integer_t, scalar_t>;
 
-        static float normalize(float raw) {
-            return raw;
-        }
-    };
-}
+using KnnAnnoyEuclidean = knncolle_annoy::AnnoyBuilder<Annoy::Euclidean, DataMatrix, scalar_t, integer_t, scalar_t>;
+using KnnAnnoyAngular   = knncolle_annoy::AnnoyBuilder<Annoy::Angular, DataMatrix, scalar_t, integer_t, scalar_t>;
+using KnnAnnoyDot       = knncolle_annoy::AnnoyBuilder<Annoy::DotProduct, DataMatrix, scalar_t, integer_t, scalar_t>;
 
-using knnAnnoyEuclidean = knncolle::Annoy<Annoy::Euclidean, int, scalar_t, scalar_t, int32_t, scalar_t>;
-using knnAnnoyAngular   = knncolle::Annoy<Annoy::Angular, int, scalar_t, scalar_t, int32_t, scalar_t>;
-using knnAnnoyDot       = knncolle::Annoy<Annoy::DotProduct, int, scalar_t, scalar_t, int32_t, scalar_t>;
+using KnnHnsw           = knncolle_hnsw::HnswBuilder<DataMatrix, scalar_t, scalar_t>;
 
-using knnHnswEuclidean  = knncolle::Hnsw<knncolle::hnsw_distances::Euclidean, int, scalar_t, scalar_t>;
-using knnHnswDot        = knncolle::Hnsw<knncolle::hnsw_distances::InnerProduct, int, scalar_t, scalar_t>;
-
-static void normalizData(std::vector<scalar_t>& data) {
+static void normalizeData(std::vector<scalar_t>& data) {
     float norm = 0.0f;
     for (const auto& val : data)
         norm += val * val;
 
-    norm = 1.0f / (sqrtf(norm) + 1e-30f);
+    norm = 1.0f / (std::sqrt(norm) + 1e-30f);
 
 #pragma omp parallel
     for (std::int64_t i = 0; i < data.size(); i++)
@@ -139,7 +144,7 @@ void UMAPAnalysisPlugin::init()
     _settingsAction.getCurrentEpochAction().setString(QString::number(0));
 
     // Compute suggested number of epoch
-    _settingsAction.getNumberOfEpochsAction().setValue(umappp::choose_num_epochs(-1, _numPoints));
+    _settingsAction.getNumberOfEpochsAction().setValue(umappp::internal::choose_num_epochs(-1, _numPoints));
 
     // Create UMAP worker, which will be executed in another thread
     // Start the analysis when the user clicks the start analysis push button
@@ -224,7 +229,6 @@ QVariantMap UMAPAnalysisPlugin::toVariantMap() const
 /// ////////// ///
 
 UMAPWorker::UMAPWorker(Dataset<Points>& inputPoints, DatasetTask* parentTask, int outDim, SettingsAction* settings, KnnSettingsAction* knnSettings, AdvancedSettingsAction* advSettings):
-    _umap(),
     _shouldStop(false),
     _inputDataset(inputPoints),
     _computeTask(nullptr),
@@ -286,7 +290,7 @@ void UMAPWorker::compute()
     // determine threading
     unsigned int nThreads = 1;
 
-#ifdef USE_OPENMP
+#ifdef _OPENMP
     if (_knnSettingsAction->getMultithreadAction().isChecked())
     {
         nThreads = omp_get_max_threads();
@@ -296,7 +300,7 @@ void UMAPWorker::compute()
 #endif
 
     // compute knn
-    knncolle::NeighborList<int, scalar_t> nearestNeighbors(numPoints);
+    knncolle::NeighborList<integer_t, scalar_t> nearestNeighbors(numPoints);
     const KnnParameters knnParams = _knnSettingsAction->getKnnParameters();
     const int numNeighbors = knnParams.getK();
     {
@@ -304,31 +308,45 @@ void UMAPWorker::compute()
 
         qDebug() << "UMAP: compute knn: " << numNeighbors << " neighbors";
 
-        std::unique_ptr<knncolle::Base<int, scalar_t, scalar_t>> searcher;
+        std::unique_ptr<KnnBase> searcher;
+        auto mat = DataMatrix(nDim, numPoints, data.data());
 
         if (knnParams.getKnnAlgorithm() == KnnLibrary::ANNOY) {
+            knncolle_annoy::AnnoyOptions opt;
+            opt.num_trees   = knnParams.getAnnoyNumTrees();
+            opt.search_mult = knnParams.getAnnoyNumChecks();
 
             if (knnParams.getKnnDistanceMetric() == KnnMetric::COSINE)
-                searcher = std::make_unique<knnAnnoyAngular>(nDim, numPoints, data.data(), knnParams.getAnnoyNumTrees(), knnParams.getAnnoyNumChecks());
+                searcher = KnnAnnoyAngular(opt).build_unique(mat);
             else if (knnParams.getKnnDistanceMetric() == KnnMetric::DOT)
-                searcher = std::make_unique<knnAnnoyDot>(nDim, numPoints, data.data(), knnParams.getAnnoyNumTrees(), knnParams.getAnnoyNumChecks());
+                searcher = KnnAnnoyDot(opt).build_unique(mat);
             else
-                searcher = std::make_unique<knnAnnoyEuclidean>(nDim, numPoints, data.data(), knnParams.getAnnoyNumTrees(), knnParams.getAnnoyNumChecks());
+                searcher = KnnAnnoyEuclidean(opt).build_unique(mat);
         }
         else // knnParams.getKnnAlgorithm() == KnnLibrary::HNSW
         {
+            knncolle_hnsw::HnswOptions<integer_t, scalar_t> opt;
+            opt.num_links       = knnParams.getHNSWm();
+            opt.ef_search       = knnParams.getHNSWef();
+            opt.ef_construction = knnParams.getHNSWef();
+
             if (knnParams.getKnnDistanceMetric() == KnnMetric::COSINE)
             {
-                normalizData(data);
-                searcher = std::make_unique<knnHnswDot>(nDim, numPoints, data.data(), knnParams.getHNSWm(), knnParams.getHNSWef(), knnParams.getHNSWef());
+                normalizeData(data);
+                searcher = KnnHnsw(opt).build_unique(mat);
             }
             else if (knnParams.getKnnDistanceMetric() == KnnMetric::DOT)
-                searcher = std::make_unique<knnHnswDot>(nDim, numPoints, data.data(), knnParams.getHNSWm(), knnParams.getHNSWef(), knnParams.getHNSWef());
-            else
-                searcher = std::make_unique<knnHnswEuclidean>(nDim, numPoints, data.data(), knnParams.getHNSWm(), knnParams.getHNSWef(), knnParams.getHNSWef());
+            {
+                opt.distance_options.create = [](int dim) -> hnswlib::SpaceInterface<float>*{
+                    return new hnswlib::InnerProductSpace(dim);
+                };
+                searcher = KnnHnsw(opt).build_unique(mat);
+            }
+            else // Euclidean distance
+                searcher = KnnHnsw(opt).build_unique(mat);
         }
 
-        nearestNeighbors = knncolle::find_nearest_neighbors<int, scalar_t>(searcher.get(), numNeighbors, nThreads);
+        nearestNeighbors = knncolle::find_nearest_neighbors<integer_t, integer_t, scalar_t>(*searcher, numNeighbors, nThreads);
 
     }
 
@@ -336,30 +354,32 @@ void UMAPWorker::compute()
 
     const auto advancedSettings = _advSettingsAction->getAdvParameters();
 
-    _umap = UMAP();
+    umappp::Options opt;
 
     // general settings
-    _umap.set_num_neighbors(numNeighbors);
-    _umap.set_num_epochs(numberOfEpochs);
+    opt.num_neighbors = numNeighbors;
+    opt.num_epochs = numberOfEpochs;
 
     // default is spectral
     if (_settingsAction->getInitializeAction().getCurrentText() == "Random")
-        _umap.set_initialize(umappp::InitMethod::RANDOM);
+        opt.initialize = umappp::InitializeMethod::RANDOM;
+    else
+        opt.initialize = umappp::InitializeMethod::SPECTRAL;
 
      // advanced settings
-    _umap.set_local_connectivity(advancedSettings.local_connectivity);
-    _umap.set_bandwidth(advancedSettings.bandwidth);
-    _umap.set_mix_ratio(advancedSettings.mix_ratio);
-    _umap.set_spread(advancedSettings.spread);
-    _umap.set_min_dist(advancedSettings.min_dist);
-    _umap.set_a(advancedSettings.a);
-    _umap.set_b(advancedSettings.b);
-    _umap.set_repulsion_strength(advancedSettings.repulsion_strength);
-    _umap.set_learning_rate(advancedSettings.learning_rate);
-    _umap.set_negative_sample_rate(advancedSettings.negative_sample_rate);
-    _umap.set_seed(advancedSettings.seed);
+    opt.local_connectivity  = advancedSettings.local_connectivity;
+    opt.bandwidth           = advancedSettings.bandwidth;
+    opt.mix_ratio           = advancedSettings.mix_ratio;
+    opt.spread              = advancedSettings.spread;
+    opt.min_dist            = advancedSettings.min_dist;
+    opt.a                   = advancedSettings.a;
+    opt.b                   = advancedSettings.b;
+    opt.repulsion_strength  = advancedSettings.repulsion_strength;
+    opt.learning_rate       = advancedSettings.learning_rate;
+    opt.negative_sample_rate = advancedSettings.negative_sample_rate;
+    opt.seed                = advancedSettings.seed;
 
-    auto status = std::make_unique<UMAP::Status>(_umap.initialize(nearestNeighbors, _outDimensions, _embedding.data()));
+    auto status = umappp::initialize<integer_t, scalar_t>(nearestNeighbors, _outDimensions, _embedding.data(), opt);
 
     const auto updateEmbedding = [this, numPoints](int ep) -> void {
         _outEmbedding.assign(_embedding.begin(), _embedding.end());
@@ -384,7 +404,7 @@ void UMAPWorker::compute()
         if (_shouldStop)
             break;
 
-        status->run(iter);
+        status.run(iter);
 
         if (iter % 10 == 0)
             updateEmbedding(iter);
@@ -396,7 +416,7 @@ void UMAPWorker::compute()
 
     updateEmbedding(iter);
 
-    qDebug() << "UMAP: total epochs: " << status->epoch() + 1;
+    qDebug() << "UMAP: total epochs: " << status.epoch() + 1;
 
     // Flag the analysis task as finished
     _computeTask->setFinished();

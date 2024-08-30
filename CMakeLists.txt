@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 3.21)
 
-option(USE_OPENMP "Use OpenMP - by default ON" ON)
-option(USE_AVX "Use AVX if available - by default ON" OFF)
+option(MV_UMAP_USE_OPENMP "Use OpenMP - by default ON" ON)
+option(MV_UMAP_USE_AVX "Use AVX if available - by default ON" OFF)
 
 # -----------------------------------------------------------------------------
-# UMAPAnalysis Plugin
+# UMAP Analysis Plugin
 # -----------------------------------------------------------------------------
 set(UMAPANALYSIS "UMAPAnalysisPlugin")
 PROJECT(${UMAPANALYSIS} 
-        VERSION 1.0.0
+        VERSION 1.1.0
         DESCRIPTION "A ManiVault plugin that wraps LTLA/umappp"
         LANGUAGES CXX)
 
@@ -31,25 +31,13 @@ include(FetchContent)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(CMakeCheckSetAVX)
 
-# We do not need these here
-set(CMAKE_Fortran_COMPILER_WORKS 0 CACHE BOOL "" FORCE)
-set(CMAKE_Fortran_COMPILER "" CACHE FILEPATH "" FORCE)
-
-# -----------------------------------------------------------------------------
-# Set install directory
-# -----------------------------------------------------------------------------
-# Check if the directory to the ManiVault installation has been provided
-if(NOT DEFINED MV_INSTALL_DIR)
-    set(MV_INSTALL_DIR "" CACHE PATH "Directory where ManiVault is installed")
-    message(FATAL_ERROR "Please set MV_INSTALL_DIR to the directory where ManiVault is installed")
-endif()
-file(TO_CMAKE_PATH ${MV_INSTALL_DIR} MV_INSTALL_DIR)
-
 # -----------------------------------------------------------------------------
 # Dependencies
 # -----------------------------------------------------------------------------
 find_package(Qt6 COMPONENTS Widgets WebEngineWidgets Concurrent REQUIRED)
 find_package(OpenMP)
+
+find_package(ManiVault COMPONENTS Core PointData CONFIG)
 
 # avoid several of eigens cmake config steps
 set(BUILD_TESTING OFF CACHE BOOL "Disable testing for Eigen" FORCE)
@@ -57,11 +45,27 @@ set(EIGEN_BUILD_DOC OFF CACHE BOOL "Enable creation of Eigen documentation" FORC
 
 FetchContent_Declare(
   umappp 
-  GIT_REPOSITORY https://github.com/LTLA/umappp
-  GIT_TAG ff423214adb7aa7128833500f17b42b0fbe3d4d0 # master as of 24/05/24
+  GIT_REPOSITORY https://github.com/libscran/umappp
+  GIT_TAG v2.0.1
 )
 
 FetchContent_MakeAvailable(umappp)
+
+FetchContent_Declare(
+  knncolle_hnsw
+  GIT_REPOSITORY https://github.com/knncolle/knncolle_hnsw
+  GIT_TAG v0.1.0
+)
+
+FetchContent_MakeAvailable(knncolle_hnsw)
+
+FetchContent_Declare(
+  knncolle_annoy
+  GIT_REPOSITORY https://github.com/knncolle/knncolle_annoy
+  GIT_TAG v0.1.0
+)
+
+FetchContent_MakeAvailable(knncolle_annoy)
 
 # -----------------------------------------------------------------------------
 # Source files
@@ -91,7 +95,7 @@ add_library(${UMAPANALYSIS} SHARED ${UMAPANALYSIS_SOURCES})
 # Target include directories
 # -----------------------------------------------------------------------------
 # Include ManiVault headers, including system data plugins
-target_include_directories(${UMAPANALYSIS} PRIVATE "${MV_INSTALL_DIR}/$<CONFIGURATION>/include/")
+target_include_directories(${UMAPANALYSIS} PRIVATE "${ManiVault_INCLUDE_DIR}")
 
 # -----------------------------------------------------------------------------
 # Target properties
@@ -104,7 +108,7 @@ if(MSVC)
 endif()
 
 # Instruction sets
-check_and_set_AVX(${UMAPANALYSIS} ${USE_AVX})
+check_and_set_AVX(${UMAPANALYSIS} ${MV_UMAP_USE_AVX})
 
 # -----------------------------------------------------------------------------
 # Target library linking
@@ -113,38 +117,21 @@ target_link_libraries(${UMAPANALYSIS} PRIVATE Qt6::Widgets)
 target_link_libraries(${UMAPANALYSIS} PRIVATE Qt6::WebEngineWidgets)
 target_link_libraries(${UMAPANALYSIS} PRIVATE Qt6::Concurrent)
 
-target_link_libraries(${UMAPANALYSIS} PRIVATE ltla::umappp)
+target_link_libraries(${UMAPANALYSIS} PRIVATE libscran::umappp)
+target_link_libraries(${UMAPANALYSIS} PRIVATE knncolle::knncolle_hnsw)
+target_link_libraries(${UMAPANALYSIS} PRIVATE knncolle::knncolle_annoy)
 
-# Link to ManiVault and data plugins
-# The link path in this repo assumes that the ManiVault core was built locally
-# in contrast to having been installed with an installer. In the latter case you'll have
-# to adapt the MV_LINK_PATH and PLUGIN_LINK_PATH to your install folder
-set(MV_LINK_PATH "${MV_INSTALL_DIR}/$<CONFIGURATION>/lib")
-set(PLUGIN_LINK_PATH "${MV_INSTALL_DIR}/$<CONFIGURATION>/$<IF:$<CXX_COMPILER_ID:MSVC>,lib,Plugins>")
-set(MV_LINK_SUFFIX $<IF:$<CXX_COMPILER_ID:MSVC>,${CMAKE_LINK_LIBRARY_SUFFIX},${CMAKE_SHARED_LIBRARY_SUFFIX}>)
+target_link_libraries(${UMAPANALYSIS} PRIVATE ManiVault::Core)
+target_link_libraries(${UMAPANALYSIS} PRIVATE ManiVault::PointData)
 
-set(MV_LINK_LIBRARY "${MV_LINK_PATH}/${CMAKE_SHARED_LIBRARY_PREFIX}MV_Public${MV_LINK_SUFFIX}")
-set(POINTDATA_LINK_LIBRARY "${PLUGIN_LINK_PATH}/${CMAKE_SHARED_LIBRARY_PREFIX}PointData${MV_LINK_SUFFIX}") 
-
-target_link_libraries(${UMAPANALYSIS} PRIVATE "${MV_LINK_LIBRARY}")
-target_link_libraries(${UMAPANALYSIS} PRIVATE "${POINTDATA_LINK_LIBRARY}")
-
-if(USE_OPENMP AND OpenMP_CXX_FOUND)
-    message(STATUS "Link ${UMAPANALYSIS} to OpenMP")
-    target_compile_definitions(${UMAPANALYSIS} PRIVATE USE_OPENMP)
-    if(MSVC)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /openmp:llvm")
-        message(STATUS "Using /openmp:llvm for MSVC")
-    else()
-        target_link_libraries(${UMAPANALYSIS} PRIVATE OpenMP::OpenMP_CXX)
-    endif()
-        
+if(${MV_UMAP_USE_OPENMP} AND OpenMP_CXX_FOUND)
+    target_link_libraries(${UMAPANALYSIS} PRIVATE OpenMP::OpenMP_CXX)
 endif()
 
 # -----------------------------------------------------------------------------
 # Target installation
 # -----------------------------------------------------------------------------
-# Install the shared plugin libary to the "Plugins" folder in the ManiVault install directory
+# Install the shared plugin library to the "Plugins" folder in the ManiVault install directory
 install(TARGETS ${UMAPANALYSIS}
     RUNTIME DESTINATION Plugins COMPONENT PLUGIN # Windows .dll
     LIBRARY DESTINATION Plugins COMPONENT PLUGIN # Linux/Mac .so
@@ -155,7 +142,7 @@ add_custom_command(TARGET ${UMAPANALYSIS} POST_BUILD
         --install ${CMAKE_CURRENT_BINARY_DIR}
         --config $<CONFIGURATION>
         --component PLUGIN
-        --prefix ${MV_INSTALL_DIR}/$<CONFIGURATION>
+        --prefix ${ManiVault_INSTALL_DIR}/$<CONFIGURATION>
 )
 
 # -----------------------------------------------------------------------------
@@ -163,6 +150,6 @@ add_custom_command(TARGET ${UMAPANALYSIS} POST_BUILD
 # -----------------------------------------------------------------------------
 # Automatically set the debug environment (command + working directory) for MSVC
 if(MSVC)
-    set_property(TARGET ${UMAPANALYSIS} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY $<IF:$<CONFIG:DEBUG>,${MV_INSTALL_DIR}/debug,${MV_INSTALL_DIR}/release>)
-    set_property(TARGET ${UMAPANALYSIS} PROPERTY VS_DEBUGGER_COMMAND $<IF:$<CONFIG:DEBUG>,"${MV_INSTALL_DIR}/debug/ManiVault Studio.exe","${MV_INSTALL_DIR}/release/ManiVault Studio.exe">)
+    set_property(TARGET ${UMAPANALYSIS} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY $<IF:$<CONFIG:DEBUG>,${ManiVault_INSTALL_DIR}/debug,${ManiVault_INSTALL_DIR}/release>)
+    set_property(TARGET ${UMAPANALYSIS} PROPERTY VS_DEBUGGER_COMMAND $<IF:$<CONFIG:DEBUG>,"${ManiVault_INSTALL_DIR}/debug/ManiVault Studio.exe","${ManiVault_INSTALL_DIR}/release/ManiVault Studio.exe">)
 endif()

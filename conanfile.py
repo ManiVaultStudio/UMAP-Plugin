@@ -126,6 +126,10 @@ class UMAPPluginConan(ConanFile):
         # Set some build options
         tc.variables["USE_OPENMP"] = "ON"
         
+        # Find ManiVault with find_package
+        self.manivault_dir = self.install_dir + '/cmake/mv/'
+        tc.variables["ManiVault_DIR"] = self.manivault_dir
+                
         tc.generate()
 
     def _configure_cmake(self):
