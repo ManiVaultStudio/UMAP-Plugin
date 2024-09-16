@@ -440,7 +440,7 @@ QUrl UMAPAnalysisPluginFactory::getReadmeMarkdownUrl() const
     return QUrl("https://raw.githubusercontent.com/ManiVaultStudio/UMAP-Plugin/main/README.md");
 }
 
-QUrl UMAPAnalysisPluginFactory::getRespositoryUrl() const
+QUrl UMAPAnalysisPluginFactory::getRepositoryUrl() const
 {
     return QUrl("https://github.com/ManiVaultStudio/UMAP-Plugin");
 }

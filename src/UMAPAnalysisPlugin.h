@@ -146,7 +146,7 @@ public:
      * Get the URL of the GitHub repository
      * @return URL of the GitHub repository
      */
-    QUrl getRespositoryUrl() const override;
+    QUrl getRepositoryUrl() const override;
 
     /** Creates an instance of the UMAP analysis plugin */
     AnalysisPlugin* produce() override;
