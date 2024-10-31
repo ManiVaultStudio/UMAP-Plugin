@@ -108,7 +108,7 @@ if(MSVC)
 endif()
 
 # Instruction sets
-check_and_set_AVX(${UMAPANALYSIS} ${MV_UMAP_USE_AVX})
+mv_check_and_set_AVX(${UMAPANALYSIS} ${MV_UMAP_USE_AVX})
 
 # -----------------------------------------------------------------------------
 # Target library linking
