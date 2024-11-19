@@ -142,6 +142,11 @@ add_custom_command(TARGET ${UMAPANALYSIS} POST_BUILD
         --prefix ${ManiVault_INSTALL_DIR}/$<CONFIGURATION>
 )
 
+set_target_properties(${UMAPANALYSIS}
+    PROPERTIES
+    FOLDER AnalysisPlugins
+)
+
 # -----------------------------------------------------------------------------
 # Miscellaneous
 # -----------------------------------------------------------------------------
