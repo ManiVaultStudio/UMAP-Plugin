@@ -116,9 +116,6 @@ class UMAPPluginConan(ConanFile):
 
         # Set some build options
         tc.variables["MV_UNITY_BUILD"] = "ON"
-
-        # Set some build options
-        tc.variables["MV_UNITY_BUILD"] = "ON"
         
         if os_info.is_macos:
             proc = subprocess.run("brew --prefix libomp", shell=True, capture_output=True)
