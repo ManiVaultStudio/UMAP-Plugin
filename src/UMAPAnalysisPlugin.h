@@ -134,8 +134,6 @@ public:
     UMAPAnalysisPluginFactory() {}
     ~UMAPAnalysisPluginFactory() override {}
 
-    QIcon getIcon(const QColor& color = Qt::black) const override;
-
     /**
      * Get the read me markdown file URL
      * @return URL of the read me markdown file

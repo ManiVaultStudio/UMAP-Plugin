@@ -426,14 +426,7 @@ void UMAPWorker::compute()
     resetThread();
 }
 
-/// ////////////// ///
-/// Plugin Factory ///
-/// ////////////// ///
 
-QIcon UMAPAnalysisPluginFactory::getIcon(const QColor& color /*= Qt::black*/) const
-{
-    return mv::gui::createPluginIcon("UMAP", color);
-}
 
 QUrl UMAPAnalysisPluginFactory::getReadmeMarkdownUrl() const
 {
