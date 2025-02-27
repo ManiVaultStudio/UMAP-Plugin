@@ -426,7 +426,10 @@ void UMAPWorker::compute()
     resetThread();
 }
 
-
+UMAPAnalysisPluginFactory::UMAPAnalysisPluginFactory()
+{
+    setIcon(StyledIcon(createPluginIcon("UMAP")));
+}
 
 QUrl UMAPAnalysisPluginFactory::getReadmeMarkdownUrl() const
 {

@@ -131,7 +131,8 @@ class UMAPAnalysisPluginFactory : public AnalysisPluginFactory
 
 public:
 
-    UMAPAnalysisPluginFactory() {}
+    UMAPAnalysisPluginFactory();
+
     ~UMAPAnalysisPluginFactory() override {}
 
     /**
