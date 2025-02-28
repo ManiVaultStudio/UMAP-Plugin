@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.22)
 
 option(MV_UMAP_USE_OPENMP "Use OpenMP - by default ON" ON)
 option(MV_UMAP_USE_AVX "Use AVX if available - by default ON" OFF)
@@ -21,8 +21,8 @@ set(CMAKE_AUTOMOC ON)
 
 if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /DWIN32 /EHsc /MP /permissive- /Zc:__cplusplus")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:LIBCMT")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /MD")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD")
 endif(MSVC)
 
@@ -34,7 +34,7 @@ include(FetchContent)
 find_package(Qt6 COMPONENTS Widgets WebEngineWidgets Concurrent REQUIRED)
 find_package(OpenMP)
 
-find_package(ManiVault COMPONENTS Core PointData CONFIG)
+find_package(ManiVault COMPONENTS Core PointData CONFIG QUIET)
 
 # avoid several of eigens cmake config steps
 set(BUILD_TESTING OFF CACHE BOOL "Disable testing for Eigen" FORCE)
@@ -98,7 +98,7 @@ target_include_directories(${UMAPANALYSIS} PRIVATE "${ManiVault_INCLUDE_DIR}")
 # Target properties
 # -----------------------------------------------------------------------------
 # Request C++17
-target_compile_features(${UMAPANALYSIS} PRIVATE cxx_std_17)
+target_compile_features(${UMAPANALYSIS} PRIVATE cxx_std_20)
 
 if(MSVC)
     target_compile_options(${UMAPANALYSIS} PRIVATE /bigobj)    # for Eigen
@@ -152,6 +152,6 @@ set_target_properties(${UMAPANALYSIS}
 # -----------------------------------------------------------------------------
 # Automatically set the debug environment (command + working directory) for MSVC
 if(MSVC)
-    set_property(TARGET ${UMAPANALYSIS} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY $<IF:$<CONFIG:DEBUG>,${ManiVault_INSTALL_DIR}/debug,${ManiVault_INSTALL_DIR}/release>)
-    set_property(TARGET ${UMAPANALYSIS} PROPERTY VS_DEBUGGER_COMMAND $<IF:$<CONFIG:DEBUG>,"${ManiVault_INSTALL_DIR}/debug/ManiVault Studio.exe","${ManiVault_INSTALL_DIR}/release/ManiVault Studio.exe">)
+    set_property(TARGET ${PROJECT} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY $<IF:$<CONFIG:DEBUG>,${ManiVault_INSTALL_DIR}/Debug,$<IF:$<CONFIG:RELWITHDEBINFO>,${ManiVault_INSTALL_DIR}/RelWithDebInfo,${ManiVault_INSTALL_DIR}/Release>>)
+    set_property(TARGET ${PROJECT} PROPERTY VS_DEBUGGER_COMMAND $<IF:$<CONFIG:DEBUG>,"${ManiVault_INSTALL_DIR}/Debug/ManiVault Studio.exe",$<IF:$<CONFIG:RELWITHDEBINFO>,"${ManiVault_INSTALL_DIR}/RelWithDebInfo/ManiVault Studio.exe","${ManiVault_INSTALL_DIR}/Release/ManiVault Studio.exe">>)
 endif()
