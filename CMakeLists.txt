@@ -32,9 +32,13 @@ include(FetchContent)
 # Dependencies
 # -----------------------------------------------------------------------------
 find_package(Qt6 COMPONENTS Widgets WebEngineWidgets Concurrent REQUIRED)
+find_package(ManiVault COMPONENTS Core PointData CONFIG QUIET)
+
 find_package(OpenMP)
 
-find_package(ManiVault COMPONENTS Core PointData CONFIG QUIET)
+if(OpenMP_CXX_FOUND)
+    message(STATUS "Found OpenMP")
+endif()
 
 # avoid several of eigens cmake config steps
 set(BUILD_TESTING OFF CACHE BOOL "Disable testing for Eigen" FORCE)
