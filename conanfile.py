@@ -11,7 +11,7 @@ from rules_support import PluginBranchInfo
 class UMAPPluginConan(ConanFile):
     """Class to package the UMAP-Plugin using conan
 
-    Packages both RELEASE and DEBUG.
+    Packages both RELEASE and RELWITHDEBINFO.
     Uses rules_support (github.com/ManiVaultStudio/rulessupport) to derive
     versioninfo based on the branch naming convention
     as described in https://github.com/ManiVaultStudio/core/wiki/Branch-naming-rules
@@ -111,9 +111,7 @@ class UMAPPluginConan(ConanFile):
             proc = subprocess.run("brew --prefix libomp", shell=True, capture_output=True)
             prefix_path = f"{proc.stdout.decode('UTF-8').strip()}"
             tc.variables["OpenMP_ROOT"] = prefix_path
-            
-        tc.generate()
-
+        
         tc.generate()
 
     def _configure_cmake(self):
