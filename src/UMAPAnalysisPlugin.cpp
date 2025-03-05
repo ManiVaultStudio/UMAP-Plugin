@@ -426,13 +426,9 @@ void UMAPWorker::compute()
     resetThread();
 }
 
-/// ////////////// ///
-/// Plugin Factory ///
-/// ////////////// ///
-
-QIcon UMAPAnalysisPluginFactory::getIcon(const QColor& color /*= Qt::black*/) const
+UMAPAnalysisPluginFactory::UMAPAnalysisPluginFactory()
 {
-    return mv::gui::createPluginIcon("UMAP", color);
+    setIcon(StyledIcon(createPluginIcon("UMAP")));
 }
 
 QUrl UMAPAnalysisPluginFactory::getReadmeMarkdownUrl() const
@@ -471,7 +467,7 @@ mv::gui::PluginTriggerActions UMAPAnalysisPluginFactory::getPluginTriggerActions
     const auto numberOfDatasets = datasets.count();
 
     if (numberOfDatasets >= 1 && PluginFactory::areAllDatasetsOfTheSameType(datasets, PointType)) {
-        auto pluginTriggerAction = new PluginTriggerAction(const_cast<UMAPAnalysisPluginFactory*>(this), this, "UMAP Analysis", "Perform an UMAP Analysis", getIcon(), [this, getPluginInstance, datasets](PluginTriggerAction& pluginTriggerAction) -> void {
+        auto pluginTriggerAction = new PluginTriggerAction(const_cast<UMAPAnalysisPluginFactory*>(this), this, "UMAP Analysis", "Perform an UMAP Analysis", icon(), [this, getPluginInstance, datasets](PluginTriggerAction& pluginTriggerAction) -> void {
             for (const auto& dataset : datasets)
                 getPluginInstance(dataset);
             });

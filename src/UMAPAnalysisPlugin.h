@@ -131,10 +131,9 @@ class UMAPAnalysisPluginFactory : public AnalysisPluginFactory
 
 public:
 
-    UMAPAnalysisPluginFactory() {}
-    ~UMAPAnalysisPluginFactory() override {}
+    UMAPAnalysisPluginFactory();
 
-    QIcon getIcon(const QColor& color = Qt::black) const override;
+    ~UMAPAnalysisPluginFactory() override {}
 
     /**
      * Get the read me markdown file URL
