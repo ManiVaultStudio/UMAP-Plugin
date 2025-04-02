@@ -8,7 +8,7 @@ option(MV_UMAP_USE_AVX "Use AVX if available - by default ON" OFF)
 # -----------------------------------------------------------------------------
 set(UMAPANALYSIS "UMAPAnalysisPlugin")
 PROJECT(${UMAPANALYSIS} 
-        VERSION 1.1.0
+        VERSION 1.1.1
         DESCRIPTION "A ManiVault plugin that wraps LTLA/umappp"
         LANGUAGES CXX)
 
