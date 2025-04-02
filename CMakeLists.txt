@@ -28,6 +28,36 @@ endif(MSVC)
 
 include(FetchContent)
 
+# Find the patch program.
+find_program(PATCH_EXECUTABLE patch)
+if(CMAKE_HOST_WIN32 AND NOT PATCH_EXECUTABLE)
+    # The Windows git executable is distributed with patch.exe. Find the path to the executable, if
+    # it exists, then search `../usr/bin` and `../../usr/bin` for patch.exe.
+    find_package(Git QUIET)
+    if(GIT_EXECUTABLE)
+        get_filename_component(extra_search_path ${GIT_EXECUTABLE} DIRECTORY)
+        get_filename_component(extra_search_path_1up ${extra_search_path} DIRECTORY)
+        get_filename_component(extra_search_path_2up ${extra_search_path_1up} DIRECTORY)
+        find_program(
+        PATCH_EXECUTABLE patch HINTS "${extra_search_path_1up}/usr/bin"
+                                     "${extra_search_path_2up}/usr/bin"
+        )
+    endif()
+endif()
+if(NOT PATCH_EXECUTABLE)
+    message(FATAL_ERROR "Couldn't find `patch` executable to use with PATCHES keyword.")
+endif()
+
+function(check_patch_needed target_dir patch_file result_var)
+    execute_process(
+        COMMAND patch --dry-run -p1 < ${patch_file}
+        WORKING_DIRECTORY ${target_dir}
+        RESULT_VARIABLE PATCH_NEEDED
+        ERROR_QUIET
+    )
+    set(${result_var} ${PATCH_NEEDED} PARENT_SCOPE)
+endfunction()
+
 # -----------------------------------------------------------------------------
 # Dependencies
 # -----------------------------------------------------------------------------
