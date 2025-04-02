@@ -47,16 +47,6 @@ if(NOT PATCH_EXECUTABLE)
     message(FATAL_ERROR "Couldn't find `patch` executable to use with PATCHES keyword.")
 endif()
 
-function(check_patch_needed target_dir patch_file result_var)
-    execute_process(
-        COMMAND patch --dry-run -p1 < ${patch_file}
-        WORKING_DIRECTORY ${target_dir}
-        RESULT_VARIABLE PATCH_NEEDED
-        ERROR_QUIET
-    )
-    set(${result_var} ${PATCH_NEEDED} PARENT_SCOPE)
-endfunction()
-
 # -----------------------------------------------------------------------------
 # Dependencies
 # -----------------------------------------------------------------------------
@@ -97,11 +87,9 @@ if(NOT knncolle_knncolle_hnsw_FOUND AND NOT TARGET knncolle::knncolle_hnsw)
       GIT_REPOSITORY https://github.com/knncolle/knncolle_hnsw
       GIT_TAG v0.1.1
     )
-    
-    set(knncolle_hnsw_patch "${CMAKE_CURRENT_SOURCE_DIR}/cmake/knncolle_hnsw.patch")
-    check_patch_needed(${knncolle_hnsw_SOURCE_DIR} ${knncolle_hnsw_patch} PATCH_NEEDED)
 
-    if(PATCH_NEEDED EQUAL 0)
+    if(knncolle_hnsw_SOURCE_DIR)
+        set(knncolle_hnsw_patch "${CMAKE_CURRENT_SOURCE_DIR}/cmake/knncolle_hnsw.patch")
         set(PATCH_COMMAND "${PATCH_EXECUTABLE}" -p1 < ${knncolle_hnsw_patch})
     else()
         set(PATCH_COMMAND "")
@@ -119,11 +107,9 @@ if(NOT knncolle_knncolle_annoy_FOUND AND NOT TARGET knncolle::knncolle_annoy)
       GIT_TAG v0.1.1
     )
 
-    set(knncolle_hnsw_annoy "${CMAKE_CURRENT_SOURCE_DIR}/cmake/knncolle_annoy.patch")
-    check_patch_needed(${knncolle_annoy_SOURCE_DIR} ${knncolle_hnsw_annoy} PATCH_NEEDED)
-
-    if(PATCH_NEEDED EQUAL 0)
-        set(PATCH_COMMAND "${PATCH_EXECUTABLE}" -p1 < ${knncolle_hnsw_annoy})
+    if(knncolle_annoy_SOURCE_DIR)
+        set(knncolle_annoy_patch "${CMAKE_CURRENT_SOURCE_DIR}/cmake/knncolle_annoy.patch")
+        set(PATCH_COMMAND "${PATCH_EXECUTABLE}" -p1 < ${knncolle_annoy_patch})
     else()
         set(PATCH_COMMAND "")
     endif()
