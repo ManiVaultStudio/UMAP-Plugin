@@ -8,25 +8,38 @@ option(MV_UMAP_USE_AVX "Use AVX if available - by default ON" OFF)
 # -----------------------------------------------------------------------------
 set(UMAPANALYSIS "UMAPAnalysisPlugin")
 PROJECT(${UMAPANALYSIS} 
-        VERSION 1.1.0
+        VERSION 1.1.1
         DESCRIPTION "A ManiVault plugin that wraps LTLA/umappp"
         LANGUAGES CXX)
 
 # -----------------------------------------------------------------------------
 # CMake Options
 # -----------------------------------------------------------------------------
-set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 
-if(MSVC)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /DWIN32 /EHsc /MP /permissive- /Zc:__cplusplus")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /MD")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD")
-endif(MSVC)
+endif()
 
-include(FetchContent)
+set(MV_UMAP_CMAKE_MODULES_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+set(CMAKE_MODULE_PATH ${MV_UMAP_CMAKE_MODULES_PATH})
+
+# CMake package manager
+include(get_cpm)
+
+# re-applying patches is problematic without CPM_SOURCE_CACHE
+# see https://github.com/cpm-cmake/CPM.cmake/issues/577
+set(CPM_SOURCE_CACHE ${CMAKE_CURRENT_BINARY_DIR}/.cpm-cache)
+
+# wrapper for cmake fetch utils
+include(CMakeFetchUtils)
+
+# cpm managed dependencies
+include(CMakeCPMDependencies)
 
 # -----------------------------------------------------------------------------
 # Dependencies
@@ -40,33 +53,38 @@ if(OpenMP_CXX_FOUND)
     message(STATUS "Found OpenMP")
 endif()
 
-# avoid several of eigens cmake config steps
-set(BUILD_TESTING OFF CACHE BOOL "Disable testing for Eigen" FORCE)
-set(EIGEN_BUILD_DOC OFF CACHE BOOL "Enable creation of Eigen documentation" FORCE)
+find_package(libscran_umappp CONFIG QUIET)
 
-FetchContent_Declare(
-  umappp 
-  GIT_REPOSITORY https://github.com/libscran/umappp
-  GIT_TAG v2.0.1
-)
+if(NOT libscran_umappp_FOUND AND NOT TARGET libscran::umappp)
 
-FetchContent_MakeAvailable(umappp)
+    if(NOT eigen_SOURCE_DIR)
+        set(BUILD_TESTING OFF CACHE BOOL "Enable testing for Eigen" FORCE)
+        set(EIGEN_BUILD_TESTING  OFF CACHE BOOL "Enable creation of Eigen tests." FORCE)
+        set(EIGEN_BUILD_DOC OFF CACHE BOOL "Enable creation of Eigen documentation" FORCE)
+        set(EIGEN_BUILD_DEMOS OFF CACHE BOOL "Toggles the building of the Eigen demos" FORCE)
+        fetch_content_url(eigen "https://gitlab.com/libeigen/eigen/-/archive/3866cbfbe8622f41b4f9fa17227aaa7a8de13890/eigen-3866cbfbe8622f41b4f9fa17227aaa7a8de13890.tar.gz") # master as of 26/03/25
+    endif()
 
-FetchContent_Declare(
-  knncolle_hnsw
-  GIT_REPOSITORY https://github.com/knncolle/knncolle_hnsw
-  GIT_TAG v0.1.0
-)
+    # the patches enable use to use the local dependency versions
+    fetch_cpm_repo(aarand "https://github.com/LTLA/aarand.git" 4e41649bd3b7f86a59d6cef2ddf02fa615111429) # master as of 04-12-24, v1.0.2+
+    fetch_cpm_repo(subpar "https://github.com/LTLA/subpar.git" 561e0314c03476517f9ffe42f7282505a220523a) # master as of 04-12-24, v0.3.1+
+    fetch_cpm_repo_patch(kmeans "https://github.com/LTLA/CppKmeans.git" 56fbc963a042c44e3f9684f49b177bd86dd3b681 "kmeans.patch") # master as of 04-12-24, v3.1.1+, depends on aarand and subpar
+    fetch_cpm_repo_patch(knncolle "https://github.com/knncolle/knncolle.git" 513dc09b8a681274da83df97c3d5b353a2b61c4b "knncolle.patch") # master as of 04-12-24, v2.3.2+, depends on CppKmeans and subpar
+    fetch_cpm_repo_patch(irlba "https://github.com/LTLA/CppIrlba.git" 46281abde9047d28f02f8907a996af191d925a16 "irlba.patch") # master as of 04-12-24, v2.0.0+, depends on eigen, aarand and subpar
+    fetch_cpm_repo_patch(umappp "https://github.com/libscran/umappp.git" c48f164b4dbd02f48f2e22bdbacc69f27c4e45ab "umappp.patch") # master as of 04-12-24, v2.0.1+, depends on aarand, subpar, CppIrlba and knnolle
+endif()
 
-FetchContent_MakeAvailable(knncolle_hnsw)
+find_package(knncolle_knncolle_hnsw CONFIG QUIET)
 
-FetchContent_Declare(
-  knncolle_annoy
-  GIT_REPOSITORY https://github.com/knncolle/knncolle_annoy
-  GIT_TAG v0.1.0
-)
+if(NOT knncolle_knncolle_hnsw_FOUND AND NOT TARGET knncolle::knncolle_hnsw)
+    fetch_cpm_repo_patch(knncolle_hnsw "https://github.com/knncolle/knncolle_hnsw.git" v0.1.1 "knncolle_hnsw.patch")
+endif()
 
-FetchContent_MakeAvailable(knncolle_annoy)
+find_package(knncolle_knncolle_annoy CONFIG QUIET)
+
+if(NOT knncolle_knncolle_annoy_FOUND AND NOT TARGET knncolle::knncolle_annoy)
+    fetch_cpm_repo_patch(knncolle_annoy "https://github.com/knncolle/knncolle_annoy.git" v0.1.1 "knncolle_annoy.patch")
+endif()
 
 # -----------------------------------------------------------------------------
 # Source files
@@ -101,10 +119,10 @@ target_include_directories(${UMAPANALYSIS} PRIVATE "${ManiVault_INCLUDE_DIR}")
 # -----------------------------------------------------------------------------
 # Target properties
 # -----------------------------------------------------------------------------
-# Request C++17
+# Request C++20
 target_compile_features(${UMAPANALYSIS} PRIVATE cxx_std_20)
 
-if(MSVC)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(${UMAPANALYSIS} PRIVATE /bigobj)    # for Eigen
 endif()
 
@@ -155,7 +173,7 @@ set_target_properties(${UMAPANALYSIS}
 # Miscellaneous
 # -----------------------------------------------------------------------------
 # Automatically set the debug environment (command + working directory) for MSVC
-if(MSVC)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set_property(TARGET ${PROJECT} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY $<IF:$<CONFIG:DEBUG>,${ManiVault_INSTALL_DIR}/Debug,$<IF:$<CONFIG:RELWITHDEBINFO>,${ManiVault_INSTALL_DIR}/RelWithDebInfo,${ManiVault_INSTALL_DIR}/Release>>)
     set_property(TARGET ${PROJECT} PROPERTY VS_DEBUGGER_COMMAND $<IF:$<CONFIG:DEBUG>,"${ManiVault_INSTALL_DIR}/Debug/ManiVault Studio.exe",$<IF:$<CONFIG:RELWITHDEBINFO>,"${ManiVault_INSTALL_DIR}/RelWithDebInfo/ManiVault Studio.exe","${ManiVault_INSTALL_DIR}/Release/ManiVault Studio.exe">>)
 endif()

@@ -1,0 +1,46 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 5ac0b9f..16b656a 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -27,41 +27,3 @@ else()
+ endif()
+ 
+ target_link_libraries(knncolle_annoy INTERFACE knncolle::knncolle Annoy::Annoy)
+-
+-# Tests
+-if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+-    option(KNNCOLLE_ANNOY_TESTS "Build knncolle_annoy's test suite." ON)
+-else()
+-    option(KNNCOLLE_ANNOY_TESTS "Build knncolle_annoy's test suite." OFF)
+-endif()
+-
+-if(KNNCOLLE_ANNOY_TESTS)
+-    include(CTest)
+-    if(BUILD_TESTING)
+-        add_subdirectory(tests)
+-    endif() 
+-endif()
+-
+-# Install
+-install(DIRECTORY include/
+-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/knncolle_annoy)
+-
+-install(TARGETS knncolle_annoy
+-    EXPORT knncolle_annoyTargets)
+-
+-install(EXPORT knncolle_annoyTargets
+-    FILE knncolle_knncolle_annoyTargets.cmake
+-    NAMESPACE knncolle::
+-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/knncolle_knncolle_annoy)
+-
+-configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Config.cmake.in
+-    "${CMAKE_CURRENT_BINARY_DIR}/knncolle_knncolle_annoyConfig.cmake"
+-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/knncolle_knncolle_annoy)
+-
+-write_basic_package_version_file(
+-    "${CMAKE_CURRENT_BINARY_DIR}/knncolle_knncolle_annoyConfigVersion.cmake"
+-    COMPATIBILITY SameMajorVersion)
+-
+-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/knncolle_knncolle_annoyConfig.cmake"
+-    "${CMAKE_CURRENT_BINARY_DIR}/knncolle_knncolle_annoyConfigVersion.cmake"
+-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/knncolle_knncolle_annoy)
