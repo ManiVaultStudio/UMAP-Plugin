@@ -15,7 +15,6 @@ PROJECT(${UMAPANALYSIS}
 # -----------------------------------------------------------------------------
 # CMake Options
 # -----------------------------------------------------------------------------
-set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 
@@ -70,33 +69,67 @@ if(OpenMP_CXX_FOUND)
     message(STATUS "Found OpenMP")
 endif()
 
-# avoid several of eigens cmake config steps
-set(BUILD_TESTING OFF CACHE BOOL "Disable testing for Eigen" FORCE)
-set(EIGEN_BUILD_DOC OFF CACHE BOOL "Enable creation of Eigen documentation" FORCE)
+find_package(libscran_umappp CONFIG QUIET)
 
-FetchContent_Declare(
-  umappp 
-  GIT_REPOSITORY https://github.com/libscran/umappp
-  GIT_TAG v2.0.1
-)
+if(NOT libscran_umappp_FOUND AND NOT TARGET libscran::umappp)
+    # avoid several of eigens cmake config steps
+    set(BUILD_TESTING OFF CACHE BOOL "Enable testing for Eigen" FORCE)
+    set(EIGEN_BUILD_TESTING  OFF CACHE BOOL "Enable creation of Eigen tests." FORCE)
+    set(EIGEN_BUILD_DOC OFF CACHE BOOL "Enable creation of Eigen documentation" FORCE)
+    set(EIGEN_BUILD_DEMOS OFF CACHE BOOL "Toggles the building of the Eigen demos" FORCE)
 
-FetchContent_MakeAvailable(umappp)
+    FetchContent_Declare(
+      umappp 
+      GIT_REPOSITORY https://github.com/libscran/umappp
+      GIT_TAG v2.0.1
+    )
 
-FetchContent_Declare(
-  knncolle_hnsw
-  GIT_REPOSITORY https://github.com/knncolle/knncolle_hnsw
-  GIT_TAG v0.1.0
-)
+    FetchContent_MakeAvailable(umappp)
+    
+    message(STATUS "getting libscran_umappp")
+endif()
 
-FetchContent_MakeAvailable(knncolle_hnsw)
+find_package(knncolle_knncolle_hnsw CONFIG QUIET)
 
-FetchContent_Declare(
-  knncolle_annoy
-  GIT_REPOSITORY https://github.com/knncolle/knncolle_annoy
-  GIT_TAG v0.1.0
-)
+if(NOT knncolle_knncolle_hnsw_FOUND AND NOT TARGET knncolle::knncolle_hnsw)
+    FetchContent_Declare(
+      knncolle_hnsw
+      GIT_REPOSITORY https://github.com/knncolle/knncolle_hnsw
+      GIT_TAG v0.1.1
+    )
+    
+    set(knncolle_hnsw_patch "${CMAKE_CURRENT_SOURCE_DIR}/cmake/knncolle_hnsw.patch")
+    check_patch_needed(${knncolle_hnsw_SOURCE_DIR} ${knncolle_hnsw_patch} PATCH_NEEDED)
 
-FetchContent_MakeAvailable(knncolle_annoy)
+    if(PATCH_NEEDED EQUAL 0)
+        set(PATCH_COMMAND "${PATCH_EXECUTABLE}" -p1 < ${knncolle_hnsw_patch})
+    else()
+        set(PATCH_COMMAND "")
+    endif()
+
+    FetchContent_MakeAvailable(knncolle_hnsw)
+endif()
+
+find_package(knncolle_knncolle_annoy CONFIG QUIET)
+
+if(NOT knncolle_knncolle_annoy_FOUND AND NOT TARGET knncolle::knncolle_annoy)
+    FetchContent_Declare(
+      knncolle_annoy
+      GIT_REPOSITORY https://github.com/knncolle/knncolle_annoy
+      GIT_TAG v0.1.1
+    )
+
+    set(knncolle_hnsw_annoy "${CMAKE_CURRENT_SOURCE_DIR}/cmake/knncolle_annoy.patch")
+    check_patch_needed(${knncolle_annoy_SOURCE_DIR} ${knncolle_hnsw_annoy} PATCH_NEEDED)
+
+    if(PATCH_NEEDED EQUAL 0)
+        set(PATCH_COMMAND "${PATCH_EXECUTABLE}" -p1 < ${knncolle_hnsw_annoy})
+    else()
+        set(PATCH_COMMAND "")
+    endif()
+
+    FetchContent_MakeAvailable(knncolle_annoy)
+endif()
 
 # -----------------------------------------------------------------------------
 # Source files
