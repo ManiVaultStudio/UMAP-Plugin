@@ -131,7 +131,7 @@ target_include_directories(${UMAPANALYSIS} PRIVATE "${ManiVault_INCLUDE_DIR}")
 # -----------------------------------------------------------------------------
 # Target properties
 # -----------------------------------------------------------------------------
-# Request C++17
+# Request C++20
 target_compile_features(${UMAPANALYSIS} PRIVATE cxx_std_20)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
