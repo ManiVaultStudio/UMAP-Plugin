@@ -57,7 +57,7 @@ find_package(libscran_umappp CONFIG QUIET)
 
 if(NOT libscran_umappp_FOUND AND NOT TARGET libscran::umappp)
 
-    if(NOT eigen_SOURCE_DIR)
+    if(NOT eigen_SOURCE_DIR AND NOT TARGET Eigen3::Eigen AND NOT Eigen3_FOUND)
         set(BUILD_TESTING OFF CACHE BOOL "Enable testing for Eigen" FORCE)
         set(EIGEN_BUILD_TESTING  OFF CACHE BOOL "Enable creation of Eigen tests." FORCE)
         set(EIGEN_BUILD_DOC OFF CACHE BOOL "Enable creation of Eigen documentation" FORCE)
