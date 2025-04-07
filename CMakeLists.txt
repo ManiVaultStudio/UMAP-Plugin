@@ -3,6 +3,11 @@ cmake_minimum_required(VERSION 3.22)
 option(MV_UMAP_USE_OPENMP "Use OpenMP - by default ON" ON)
 option(MV_UMAP_USE_AVX "Use AVX if available - by default ON" OFF)
 
+# Set DOWNLOAD_EXTRACT_TIMESTAMP option to the time of the extraction, added in 3.24
+if(POLICY CMP0135)
+  cmake_policy(SET CMP0135 NEW)
+endif()
+
 # -----------------------------------------------------------------------------
 # UMAP Analysis Plugin
 # -----------------------------------------------------------------------------
