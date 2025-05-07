@@ -98,24 +98,23 @@ void UMAPAnalysisPlugin::init()
     auto initEmbeddingsAndDimensions = [this](uint32_t numPoints) {
         std::vector<scalar_t> initEmbeddingValues;
         initEmbeddingValues.resize(numPoints * static_cast<size_t>(_outDimensions));
+
         _outputPoints->setData(initEmbeddingValues.data(), initEmbeddingValues.size() / _outDimensions, _outDimensions);
         events().notifyDatasetDataChanged(_outputPoints);
 
         // Set the dimension names as visible in the GUI
+        std::vector<QString> dimNames;
         if (_outDimensions == 2)
-            _outputPoints->setDimensionNames({ "UMAP x", "UMAP y" });
+            dimNames = { "UMAP x", "UMAP y" };
         else if (_outDimensions == 3)
-            _outputPoints->setDimensionNames({ "UMAP x", "UMAP y", "UMAP z" });
-        else
-        {
-            std::vector<QString> dimNames;
-            for (int i = 1; i <= _outDimensions; ++i)
+            dimNames = { "UMAP x", "UMAP y", "UMAP z" };
+        else {
+            for (int i = 1; i <= _outDimensions; ++i) {
                 dimNames.push_back(QString("UMAP %1").arg(i));
-
-            _outputPoints->setDimensionNames(dimNames);
+            }
         }
 
-        events().notifyDatasetDataDimensionsChanged(_outputPoints);
+        _outputPoints->setDimensionNames(dimNames); // calls notifyDatasetDataDimensionsChanged
         };
 
     // Create UMAP output dataset (a points dataset which is derived from the input points dataset) and set the output dataset
