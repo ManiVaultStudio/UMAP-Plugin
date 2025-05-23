@@ -41,14 +41,14 @@ Q_PLUGIN_METADATA(IID "studio.manivault.UMAPAnalysisPlugin")
 using namespace mv;
 using namespace mv::plugin;
 
-using DataMatrix        = knncolle::SimpleMatrix<integer_t, integer_t, scalar_t>;
-using KnnBase           = knncolle::Prebuilt<integer_t, integer_t, scalar_t>;
+using DataMatrix        = knncolle::SimpleMatrix< /* observation index */ integer_t, /* data type */ scalar_t>;
+using KnnBase           = knncolle::Prebuilt< /* observation index */ integer_t, /* data type */ scalar_t, /* distance type */ scalar_t>;
 
-using KnnAnnoyEuclidean = knncolle_annoy::AnnoyBuilder<Annoy::Euclidean, DataMatrix, scalar_t, integer_t, scalar_t>;
-using KnnAnnoyAngular   = knncolle_annoy::AnnoyBuilder<Annoy::Angular, DataMatrix, scalar_t, integer_t, scalar_t>;
-using KnnAnnoyDot       = knncolle_annoy::AnnoyBuilder<Annoy::DotProduct, DataMatrix, scalar_t, integer_t, scalar_t>;
+using KnnAnnoyEuclidean = knncolle_annoy::AnnoyBuilder<integer_t, scalar_t, scalar_t, Annoy::Euclidean>;
+using KnnAnnoyAngular   = knncolle_annoy::AnnoyBuilder<integer_t, scalar_t, scalar_t, Annoy::Angular>;
+using KnnAnnoyDot       = knncolle_annoy::AnnoyBuilder<integer_t, scalar_t, scalar_t, Annoy::DotProduct>;
 
-using KnnHnsw           = knncolle_hnsw::HnswBuilder<DataMatrix, scalar_t, scalar_t>;
+using KnnHnsw           = knncolle_hnsw::HnswBuilder<integer_t, scalar_t, scalar_t, DataMatrix>;
 
 static void normalizeData(std::vector<scalar_t>& data) {
     float norm = 0.0f;
@@ -308,7 +308,7 @@ void UMAPWorker::compute()
         qDebug() << "UMAP: compute knn: " << numNeighbors << " neighbors";
 
         std::unique_ptr<KnnBase> searcher;
-        auto mat = DataMatrix(nDim, numPoints, data.data());
+        const auto mat = DataMatrix(nDim, numPoints, data.data());
 
         if (knnParams.getKnnAlgorithm() == KnnLibrary::ANNOY) {
             knncolle_annoy::AnnoyOptions opt;
@@ -324,28 +324,31 @@ void UMAPWorker::compute()
         }
         else // knnParams.getKnnAlgorithm() == KnnLibrary::HNSW
         {
-            knncolle_hnsw::HnswOptions<integer_t, scalar_t> opt;
+            knncolle_hnsw::HnswOptions opt;
             opt.num_links       = knnParams.getHNSWm();
             opt.ef_search       = knnParams.getHNSWef();
             opt.ef_construction = knnParams.getHNSWef();
 
-            if (knnParams.getKnnDistanceMetric() == KnnMetric::COSINE)
-            {
-                normalizeData(data);
-                searcher = KnnHnsw(opt).build_unique(mat);
-            }
-            else if (knnParams.getKnnDistanceMetric() == KnnMetric::DOT)
-            {
-                opt.distance_options.create = [](int dim) -> hnswlib::SpaceInterface<float>*{
-                    return new hnswlib::InnerProductSpace(dim);
+            auto euclid_config = knncolle_hnsw::makeEuclideanDistanceConfig<scalar_t>();
+
+            auto inner_config = knncolle_hnsw::DistanceConfig<scalar_t>();
+            inner_config.create = [](std::size_t dim) -> hnswlib::SpaceInterface<scalar_t>*{
+                return static_cast<hnswlib::InnerProductSpace*>(new hnswlib::InnerProductSpace(dim));
                 };
-                searcher = KnnHnsw(opt).build_unique(mat);
+
+            if (knnParams.getKnnDistanceMetric() == KnnMetric::COSINE) {
+                normalizeData(data);
+                searcher = KnnHnsw(euclid_config, opt).build_unique(mat);
             }
-            else // Euclidean distance
-                searcher = KnnHnsw(opt).build_unique(mat);
+            else if (knnParams.getKnnDistanceMetric() == KnnMetric::DOT) {
+                searcher = KnnHnsw(inner_config, opt).build_unique(mat);
+            }
+            else { // Euclidean distance
+                searcher = KnnHnsw(euclid_config, opt).build_unique(mat);
+            }
         }
 
-        nearestNeighbors = knncolle::find_nearest_neighbors<integer_t, integer_t, scalar_t>(*searcher, numNeighbors, nThreads);
+        nearestNeighbors = knncolle::find_nearest_neighbors<integer_t, scalar_t, scalar_t>(*searcher, numNeighbors, nThreads);
 
     }
 
