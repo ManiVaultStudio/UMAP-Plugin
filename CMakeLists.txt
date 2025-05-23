@@ -13,7 +13,7 @@ endif()
 # -----------------------------------------------------------------------------
 set(UMAPANALYSIS "UMAPAnalysisPlugin")
 PROJECT(${UMAPANALYSIS} 
-        VERSION 1.1.1
+        VERSION 1.2.0
         DESCRIPTION "A ManiVault plugin that wraps LTLA/umappp"
         LANGUAGES CXX)
 
