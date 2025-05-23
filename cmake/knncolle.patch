@@ -2,18 +2,17 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 index ffb3b95..a13a6e1 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -19,49 +19,5 @@ target_compile_features(knncolle INTERFACE cxx_std_17)
+@@ -19,48 +19,5 @@ target_compile_features(knncolle INTERFACE cxx_std_17)
  
  # Dependencies
  option(KNNCOLLE_FETCH_EXTERN "Automatically fetch knncolle's external dependencies." ON)
 -if(KNNCOLLE_FETCH_EXTERN)
 -    add_subdirectory(extern)
 -else()
--    find_package(ltla_kmeans 3.0.0 CONFIG REQUIRED)
--    find_package(ltla_subpar 0.3.0 CONFIG REQUIRED)
+-    find_package(ltla_subpar 0.4.0 CONFIG REQUIRED)
 -endif()
  
- target_link_libraries(knncolle INTERFACE ltla::kmeans ltla::subpar)
+ target_link_libraries(knncolle INTERFACE ltla::subpar)
 -
 -# Tests
 -if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)

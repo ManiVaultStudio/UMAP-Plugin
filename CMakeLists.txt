@@ -72,23 +72,22 @@ if(NOT libscran_umappp_FOUND AND NOT TARGET libscran::umappp)
 
     # the patches enable use to use the local dependency versions
     fetch_cpm_repo(aarand "https://github.com/LTLA/aarand.git" 4e41649bd3b7f86a59d6cef2ddf02fa615111429) # master as of 04-12-24, v1.0.2+
-    fetch_cpm_repo(subpar "https://github.com/LTLA/subpar.git" 561e0314c03476517f9ffe42f7282505a220523a) # master as of 04-12-24, v0.3.1+
-    fetch_cpm_repo_patch(kmeans "https://github.com/LTLA/CppKmeans.git" 56fbc963a042c44e3f9684f49b177bd86dd3b681 "kmeans.patch") # master as of 04-12-24, v3.1.1+, depends on aarand and subpar
-    fetch_cpm_repo_patch(knncolle "https://github.com/knncolle/knncolle.git" 513dc09b8a681274da83df97c3d5b353a2b61c4b "knncolle.patch") # master as of 04-12-24, v2.3.2+, depends on CppKmeans and subpar
-    fetch_cpm_repo_patch(irlba "https://github.com/LTLA/CppIrlba.git" 46281abde9047d28f02f8907a996af191d925a16 "irlba.patch") # master as of 04-12-24, v2.0.0+, depends on eigen, aarand and subpar
-    fetch_cpm_repo_patch(umappp "https://github.com/libscran/umappp.git" c48f164b4dbd02f48f2e22bdbacc69f27c4e45ab "umappp.patch") # master as of 04-12-24, v2.0.1+, depends on aarand, subpar, CppIrlba and knnolle
+    fetch_cpm_repo(subpar "https://github.com/LTLA/subpar.git" 5fe38b9507deb12b3c27b44c510d930d797e55fe) # master as of 23-05-25, v0.4.0
+    fetch_cpm_repo_patch(knncolle "https://github.com/knncolle/knncolle.git" 72d2b1dbd40160b475beda8e1f2584206a234613 "knncolle.patch") # master as of 23-05-25, v3.0.1+, depends on subpar
+    fetch_cpm_repo_patch(irlba "https://github.com/LTLA/CppIrlba.git" 7533aa39deaa4ce50b46dbe47d08a8cc661922f2 "irlba.patch") # master as of 23-05-25, v2.0.2+, depends on eigen, aarand and subpar
+    fetch_cpm_repo_patch(umappp "https://github.com/libscran/umappp.git" 0b0047bfdb6835d9b83943165d29ce581ca4dd34 "umappp.patch") # master as of 23-05-25, v3.0.0, depends on aarand, subpar, CppIrlba and knnolle
 endif()
 
 find_package(knncolle_knncolle_hnsw CONFIG QUIET)
 
 if(NOT knncolle_knncolle_hnsw_FOUND AND NOT TARGET knncolle::knncolle_hnsw)
-    fetch_cpm_repo_patch(knncolle_hnsw "https://github.com/knncolle/knncolle_hnsw.git" v0.1.1 "knncolle_hnsw.patch")
+    fetch_cpm_repo_patch(knncolle_hnsw "https://github.com/knncolle/knncolle_hnsw.git" c945bb875e4b38bfcdd4346caa3c735f5ade5a08 "knncolle_hnsw.patch")  # master as of 23-05-25, v0.2.0+
 endif()
 
 find_package(knncolle_knncolle_annoy CONFIG QUIET)
 
 if(NOT knncolle_knncolle_annoy_FOUND AND NOT TARGET knncolle::knncolle_annoy)
-    fetch_cpm_repo_patch(knncolle_annoy "https://github.com/knncolle/knncolle_annoy.git" v0.1.1 "knncolle_annoy.patch")
+    fetch_cpm_repo_patch(knncolle_annoy "https://github.com/knncolle/knncolle_annoy.git" da12815c927dbe63488a54936180ffb1ea88b049 "knncolle_annoy.patch") # master as of 23-05-25, v0.2.0+
 endif()
 
 # -----------------------------------------------------------------------------
