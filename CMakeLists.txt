@@ -103,16 +103,19 @@ set(UMAPANALYSIS_SOURCES
     src/KnnSettingsAction.cpp
     src/AdvancedSettingsAction.h
     src/AdvancedSettingsAction.cpp
-    src/UMAPAnalysisPlugin.json
 )
 
+set(UMAPANALYSIS_AUX
+    PluginInfo.json
+)
 source_group(Plugin FILES ${UMAPANALYSIS_SOURCES})
+source_group(Aux FILES ${UMAPANALYSIS_AUX})
 
 # -----------------------------------------------------------------------------
 # CMake Target
 # -----------------------------------------------------------------------------
 # Create dynamic library for the plugin
-add_library(${UMAPANALYSIS} SHARED ${UMAPANALYSIS_SOURCES})
+add_library(${UMAPANALYSIS} SHARED ${UMAPANALYSIS_SOURCES} ${UMAPANALYSIS_AUX})
 
 # -----------------------------------------------------------------------------
 # Target include directories
@@ -168,10 +171,7 @@ add_custom_command(TARGET ${UMAPANALYSIS} POST_BUILD
         --prefix ${ManiVault_INSTALL_DIR}/$<CONFIGURATION>
 )
 
-set_target_properties(${UMAPANALYSIS}
-    PROPERTIES
-    FOLDER AnalysisPlugins
-)
+mv_handle_plugin_config(${UMAPANALYSIS})
 
 # -----------------------------------------------------------------------------
 # Miscellaneous

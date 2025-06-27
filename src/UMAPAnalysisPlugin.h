@@ -132,7 +132,7 @@ class UMAPAnalysisPluginFactory : public AnalysisPluginFactory
     Q_INTERFACES(mv::plugin::AnalysisPluginFactory mv::plugin::PluginFactory)
     Q_OBJECT
     Q_PLUGIN_METADATA(IID   "studio.manivault.UMAPAnalysisPlugin"
-                      FILE  "UMAPAnalysisPlugin.json")
+                      FILE  "PluginInfo.json")
 
 public:
 
