@@ -1,5 +1,6 @@
 #include "UMAPAnalysisPlugin.h"
 
+#include <widgets/MarkdownDialog.h>
 #include <util/Icon.h>
 
 #include <PointData/DimensionsPickerAction.h>
@@ -431,6 +432,16 @@ void UMAPWorker::compute()
 UMAPAnalysisPluginFactory::UMAPAnalysisPluginFactory()
 {
     setIcon(StyledIcon(createPluginIcon("UMAP")));
+
+    connect(&getPluginMetadata().getTriggerHelpAction(), &TriggerAction::triggered, this, [this]() -> void {
+        if (!getReadmeMarkdownUrl().isValid())
+            return;
+
+        util::MarkdownDialog markdownDialog(getReadmeMarkdownUrl());
+
+        markdownDialog.setWindowTitle(QString("%1").arg(getKind()));
+        markdownDialog.exec();
+        });
 }
 
 QUrl UMAPAnalysisPluginFactory::getReadmeMarkdownUrl() const

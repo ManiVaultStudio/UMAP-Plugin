@@ -141,6 +141,8 @@ public:
      */
     QUrl getReadmeMarkdownUrl() const override;
 
+    bool hasHelp() const override { return true; }
+
     /**
      * Get the URL of the GitHub repository
      * @return URL of the GitHub repository
