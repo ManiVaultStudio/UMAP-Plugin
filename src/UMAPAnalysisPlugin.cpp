@@ -434,13 +434,15 @@ UMAPAnalysisPluginFactory::UMAPAnalysisPluginFactory()
     setIcon(StyledIcon(createPluginIcon("UMAP")));
 
     connect(&getPluginMetadata().getTriggerHelpAction(), &TriggerAction::triggered, this, [this]() -> void {
-        if (!getReadmeMarkdownUrl().isValid())
+        if (!getReadmeMarkdownUrl().isValid() || _helpMarkdownDialog.get())
             return;
 
-        util::MarkdownDialog markdownDialog(getReadmeMarkdownUrl());
+        _helpMarkdownDialog = new util::MarkdownDialog(getReadmeMarkdownUrl());
 
-        markdownDialog.setWindowTitle(QString("%1").arg(getKind()));
-        markdownDialog.exec();
+        _helpMarkdownDialog->setWindowTitle(QString("%1").arg(getKind()));
+        _helpMarkdownDialog->setAttribute(Qt::WA_DeleteOnClose);
+        _helpMarkdownDialog->setWindowModality(Qt::NonModal);
+        _helpMarkdownDialog->show();
         });
 }
 

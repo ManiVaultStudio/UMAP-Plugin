@@ -19,6 +19,7 @@
 #include "SettingsAction.h"
 
 #include <QThread>
+#include <QPointer>
 
 #include <cstdint>
 #include <memory>
@@ -28,6 +29,10 @@ using namespace mv;
 
 using integer_t = int32_t;
 using scalar_t = float;
+
+namespace mv::util {
+    class MarkdownDialog;
+}
 
 /**
  * UMAP worker class 
@@ -157,4 +162,7 @@ public:
 
     /** Enable right-click on data set to open analysis */
     PluginTriggerActions getPluginTriggerActions(const mv::Datasets& datasets) const override;
+
+private:
+    QPointer<util::MarkdownDialog>   _helpMarkdownDialog = {};
 };
