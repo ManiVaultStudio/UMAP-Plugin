@@ -178,9 +178,6 @@ void UMAPAnalysisPlugin::init()
         // From-Worker signals
         connect(_umapWorker, &UMAPWorker::embeddingUpdate, this, [this](const std::vector<scalar_t> embedding, int epoch) {
             getOutputDataset<Points>()->setData(embedding.data(), embedding.size() / _outDimensions, _outDimensions);
-
-            _settingsAction.getCurrentEpochAction().setString(QString::number(epoch));
-
             events().notifyDatasetDataChanged(getOutputDataset());
             });
 
@@ -415,24 +412,26 @@ void UMAPWorker::compute()
 
     qDebug() << "UMAP: start gradient descent: " << numberOfEpochs << " epochs";
 
-    int iter = 1;
+    int epoch = 1;
     // Iteratively update UMAP embedding
-    for (; iter < numberOfEpochs; iter++)
+    for (; epoch < numberOfEpochs; epoch++)
     {
         if (_shouldStop)
             break;
 
-        status.run(iter);
+        status.run(epoch);
 
-        if (iter % 10 == 0)
-            updateEmbedding(iter);
+        // publish the embedding only every 10 iterations
+        if (epoch % 10 == 0)
+            updateEmbedding(epoch);
 
-        _computeTask->setProgress(iter / static_cast<float>(numberOfEpochs));
-        _computeTask->setProgressDescription(QString("Epoch %1/%2").arg(QString::number(iter), QString::number(numberOfEpochs)));
-        QCoreApplication::processEvents();
+        // update status progress each iteration
+        _computeTask->setProgress(epoch / static_cast<float>(numberOfEpochs));
+        _computeTask->setProgressDescription(QString("Epoch %1/%2").arg(QString::number(epoch), QString::number(numberOfEpochs)));
+        _settingsAction->getCurrentEpochAction().setString(QString::number(epoch));
     }
 
-    updateEmbedding(iter);
+    updateEmbedding(epoch);
 
     qDebug() << "UMAP: total epochs: " << status.epoch() + 1;
 
