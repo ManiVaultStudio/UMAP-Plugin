@@ -9,7 +9,7 @@
 #include <knncolle/knncolle.hpp>
 #include <knncolle/find_nearest_neighbors.hpp>
 #include <knncolle_annoy/knncolle_annoy.hpp>
-#include <knncolle_hnsw/knncolle_hnsw.hpp>
+#include "knncolle_hnsw/knncolle_hnsw_parallel.h"
 #include <knncolle_hnsw/distances.hpp>
 #include <hnswlib/hnswlib.h>
 #include <hnswlib/space_ip.h>
@@ -52,7 +52,7 @@ using KnnAnnoyEuclidean = knncolle_annoy::AnnoyBuilder<integer_t, scalar_t, scal
 using KnnAnnoyAngular   = knncolle_annoy::AnnoyBuilder<integer_t, scalar_t, scalar_t, Annoy::Angular>;
 using KnnAnnoyDot       = knncolle_annoy::AnnoyBuilder<integer_t, scalar_t, scalar_t, Annoy::DotProduct>;
 
-using KnnHnsw           = knncolle_hnsw::HnswBuilder<integer_t, scalar_t, scalar_t, DataMatrix>;
+using KnnHnsw           = knncolle_hnsw::HnswBuilderParallel<integer_t, scalar_t, scalar_t, DataMatrix>;
 
 static void normalizeData(std::vector<scalar_t>& data) {
     float norm = 0.0f;
