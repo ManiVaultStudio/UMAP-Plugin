@@ -19,6 +19,7 @@
 #include "SettingsAction.h"
 
 #include <QThread>
+#include <QPointer>
 
 #include <cstdint>
 #include <memory>
@@ -28,6 +29,10 @@ using namespace mv;
 
 using integer_t = int32_t;
 using scalar_t = float;
+
+namespace mv::util {
+    class MarkdownDialog;
+}
 
 /**
  * UMAP worker class 
@@ -127,7 +132,7 @@ class UMAPAnalysisPluginFactory : public AnalysisPluginFactory
     Q_INTERFACES(mv::plugin::AnalysisPluginFactory mv::plugin::PluginFactory)
     Q_OBJECT
     Q_PLUGIN_METADATA(IID   "studio.manivault.UMAPAnalysisPlugin"
-                      FILE  "UMAPAnalysisPlugin.json")
+                      FILE  "PluginInfo.json")
 
 public:
 
@@ -140,6 +145,8 @@ public:
      * @return URL of the read me markdown file
      */
     QUrl getReadmeMarkdownUrl() const override;
+
+    bool hasHelp() const override { return true; }
 
     /**
      * Get the URL of the GitHub repository
@@ -155,4 +162,7 @@ public:
 
     /** Enable right-click on data set to open analysis */
     PluginTriggerActions getPluginTriggerActions(const mv::Datasets& datasets) const override;
+
+private:
+    QPointer<util::MarkdownDialog>   _helpMarkdownDialog = {};
 };

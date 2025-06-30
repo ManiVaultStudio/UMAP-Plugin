@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 option(MV_UMAP_USE_OPENMP "Use OpenMP - by default ON" ON)
-option(MV_UMAP_USE_AVX "Use AVX if available - by default ON" OFF)
+option(MV_UMAP_USE_AVX "Use AVX if available - by default OFF" OFF)
 
 # Set DOWNLOAD_EXTRACT_TIMESTAMP option to the time of the extraction, added in 3.24
 if(POLICY CMP0135)
@@ -103,16 +103,19 @@ set(UMAPANALYSIS_SOURCES
     src/KnnSettingsAction.cpp
     src/AdvancedSettingsAction.h
     src/AdvancedSettingsAction.cpp
-    src/UMAPAnalysisPlugin.json
 )
 
+set(UMAPANALYSIS_AUX
+    PluginInfo.json
+)
 source_group(Plugin FILES ${UMAPANALYSIS_SOURCES})
+source_group(Aux FILES ${UMAPANALYSIS_AUX})
 
 # -----------------------------------------------------------------------------
 # CMake Target
 # -----------------------------------------------------------------------------
 # Create dynamic library for the plugin
-add_library(${UMAPANALYSIS} SHARED ${UMAPANALYSIS_SOURCES})
+add_library(${UMAPANALYSIS} SHARED ${UMAPANALYSIS_SOURCES} ${UMAPANALYSIS_AUX})
 
 # -----------------------------------------------------------------------------
 # Target include directories
@@ -168,16 +171,13 @@ add_custom_command(TARGET ${UMAPANALYSIS} POST_BUILD
         --prefix ${ManiVault_INSTALL_DIR}/$<CONFIGURATION>
 )
 
-set_target_properties(${UMAPANALYSIS}
-    PROPERTIES
-    FOLDER AnalysisPlugins
-)
+mv_handle_plugin_config(${UMAPANALYSIS})
 
 # -----------------------------------------------------------------------------
 # Miscellaneous
 # -----------------------------------------------------------------------------
 # Automatically set the debug environment (command + working directory) for MSVC
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    set_property(TARGET ${PROJECT} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY $<IF:$<CONFIG:DEBUG>,${ManiVault_INSTALL_DIR}/Debug,$<IF:$<CONFIG:RELWITHDEBINFO>,${ManiVault_INSTALL_DIR}/RelWithDebInfo,${ManiVault_INSTALL_DIR}/Release>>)
-    set_property(TARGET ${PROJECT} PROPERTY VS_DEBUGGER_COMMAND $<IF:$<CONFIG:DEBUG>,"${ManiVault_INSTALL_DIR}/Debug/ManiVault Studio.exe",$<IF:$<CONFIG:RELWITHDEBINFO>,"${ManiVault_INSTALL_DIR}/RelWithDebInfo/ManiVault Studio.exe","${ManiVault_INSTALL_DIR}/Release/ManiVault Studio.exe">>)
+    set_property(TARGET ${UMAPANALYSIS} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY $<IF:$<CONFIG:DEBUG>,${ManiVault_INSTALL_DIR}/Debug,$<IF:$<CONFIG:RELWITHDEBINFO>,${ManiVault_INSTALL_DIR}/RelWithDebInfo,${ManiVault_INSTALL_DIR}/Release>>)
+    set_property(TARGET ${UMAPANALYSIS} PROPERTY VS_DEBUGGER_COMMAND $<IF:$<CONFIG:DEBUG>,"${ManiVault_INSTALL_DIR}/Debug/ManiVault Studio.exe",$<IF:$<CONFIG:RELWITHDEBINFO>,"${ManiVault_INSTALL_DIR}/RelWithDebInfo/ManiVault Studio.exe","${ManiVault_INSTALL_DIR}/Release/ManiVault Studio.exe">>)
 endif()
