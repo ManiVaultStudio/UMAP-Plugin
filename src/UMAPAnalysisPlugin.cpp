@@ -33,6 +33,7 @@
 #include <QDebug>
 #include <QtCore>
 
+#include <algorithm>
 #include <cmath>
 
 #ifdef _OPENMP
