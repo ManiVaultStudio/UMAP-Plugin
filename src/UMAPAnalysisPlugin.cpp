@@ -430,6 +430,7 @@ void UMAPWorker::compute()
         _computeTask->setProgress(epoch / static_cast<float>(numberOfEpochs));
         _computeTask->setProgressDescription(QString("Epoch %1/%2").arg(QString::number(epoch), QString::number(numberOfEpochs)));
         _settingsAction->getCurrentEpochAction().setString(QString::number(epoch));
+        QCoreApplication::processEvents();
     }
 
     updateEmbedding(epoch);
