@@ -72,23 +72,35 @@ KnnSettingsAction::KnnSettingsAction(QObject* parent) :
 #endif // !NDEBUG
 
     const auto updateKnnAlgorithm = [this]() -> void {
-        if(_knnAlgorithm.getCurrentIndex() == 0)
-            _knnParameters.setKnnAlgorithm(KnnAlgorithm::ANNOY);
-        else if (_knnAlgorithm.getCurrentIndex() == 1)
-            _knnParameters.setKnnAlgorithm(KnnAlgorithm::HNSW);
+        auto currentAlgorithmIntex = _knnAlgorithm.getCurrentIndex();
+
+        KnnAlgorithm newAlg = KnnAlgorithm::HNSW;
+
+        if(currentAlgorithmIntex == 0)
+            newAlg = KnnAlgorithm::ANNOY;
+        else if (currentAlgorithmIntex == 1)
+            newAlg = KnnAlgorithm::HNSW;
+
+        _knnParameters.setKnnAlgorithm(newAlg);
         };
 
     const auto updateKnnMetric = [this]() -> void {
-        if(_knnAlgorithm.getCurrentIndex() == 0)
-            _knnParameters.setKnnMetric(KnnMetric::EUCLIDEAN);
-        else if (_knnAlgorithm.getCurrentIndex() == 1)
-            _knnParameters.setKnnMetric(KnnMetric::COSINE);
-        else if (_knnAlgorithm.getCurrentIndex() == 2)
-            _knnParameters.setKnnMetric(KnnMetric::DOT);
-        else if (_knnAlgorithm.getCurrentIndex() == 3) {
-            _knnAlgorithm.setCurrentIndex(0); // only implemented for hnsw
-            _knnParameters.setKnnMetric(KnnMetric::CORRELATION);
+        auto currentMetricIntex = _knnMetric.getCurrentIndex();
+
+        KnnMetric newMetric = KnnMetric::EUCLIDEAN;
+
+        if(currentMetricIntex == 0)
+            newMetric = KnnMetric::EUCLIDEAN;
+        else if (currentMetricIntex == 1)
+            newMetric = KnnMetric::COSINE;
+        else if (currentMetricIntex == 2)
+            newMetric = KnnMetric::DOT;
+        else if (currentMetricIntex == 3) {
+            newMetric = KnnMetric::CORRELATION;
+            _knnAlgorithm.setCurrentIndex(1); // only implemented for hnsw
         }
+
+        _knnParameters.setKnnMetric(newMetric);
         };
 
     const auto updateNumTrees = [this]() -> void {
