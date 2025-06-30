@@ -1,24 +1,27 @@
 #pragma once
 
+#include <cstdint>
+
 #include "actions/DecimalAction.h"
 #include "actions/GroupAction.h"
 #include "actions/IntegralAction.h"
 
 using namespace mv::gui;
 
+// Defaults as in https://umap-learn.readthedocs.io/en/latest/api.html
 struct AdvancedParameters
 {
-    float     local_connectivity = 1.0;
-    float     bandwidth = 1;
-    float     mix_ratio = 1;
-    float     spread = 1;
-    float     min_dist = 0.01;
-    float     a = 0;
-    float     b = 0;
-    float     repulsion_strength = 1;
-    float     learning_rate = 1;
-    float     negative_sample_rate = 5;
-    uint64_t  seed = 1234567890;
+    float     local_connectivity   = 1.f;
+    float     bandwidth            = 1.f;
+    float     mix_ratio            = 1.f;
+    float     spread               = 1.f;
+    float     min_dist             = 0.1f;
+    float     a                    = 0.f;   // if 0, set based on spread, min_dist automatically
+    float     b                    = 0.f;   // if 0, set based on spread, min_dist automatically
+    float     repulsion_strength   = 1.f;
+    float     learning_rate        = 1.f;
+    float     negative_sample_rate = 5.f;
+    uint64_t  seed                 = 1234567890;
 };
 
 
