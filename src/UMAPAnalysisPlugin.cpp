@@ -306,12 +306,10 @@ void UMAPWorker::compute()
     const KnnParameters knnParams = _knnSettingsAction->getKnnParameters();
     const int numNeighbors = knnParams.getK();
     {
-        int nDim = numEnabledDimensions;
-
         qDebug() << "UMAP: compute knn: " << numNeighbors << " neighbors based on " << printMetric(knnParams.getKnnMetric()) << " with " << printAlgorithm(knnParams.getKnnAlgorithm());
 
         std::unique_ptr<KnnBase> searcher;
-        const auto mat = DataMatrix(nDim, numPoints, data.data());
+        const auto mat = DataMatrix(static_cast<size_t>(numEnabledDimensions), numPoints, data.data());
 
         if (knnParams.getKnnAlgorithm() == KnnAlgorithm::ANNOY) {
             knncolle_annoy::AnnoyOptions opt;
