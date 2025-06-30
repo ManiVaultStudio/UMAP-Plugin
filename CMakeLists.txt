@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 
 option(MV_UMAP_USE_OPENMP "Use OpenMP - by default ON" ON)
 option(MV_UMAP_USE_AVX "Use AVX if available - by default OFF" OFF)
+option(MV_UMAP_UNIT_TESTS "Create unit tests - by default OFF" OFF)
 
 # Set DOWNLOAD_EXTRACT_TIMESTAMP option to the time of the extraction, added in 3.24
 if(POLICY CMP0135)
@@ -94,9 +95,12 @@ endif()
 # Source files
 # -----------------------------------------------------------------------------
 # Define the plugin sources
-set(UMAPANALYSIS_SOURCES
+set(UMAPANALYSIS_PLUGIN
     src/UMAPAnalysisPlugin.h
     src/UMAPAnalysisPlugin.cpp
+)
+
+set(UMAPANALYSIS_SETTINGS
     src/SettingsAction.h
     src/SettingsAction.cpp
     src/KnnSettingsAction.h
@@ -105,10 +109,23 @@ set(UMAPANALYSIS_SOURCES
     src/AdvancedSettingsAction.cpp
 )
 
+set(UMAPANALYSIS_DISTANCES
+    src/hnsw/space_corr.h
+)
+
 set(UMAPANALYSIS_AUX
     PluginInfo.json
 )
-source_group(Plugin FILES ${UMAPANALYSIS_SOURCES})
+
+set(UMAPANALYSIS_SOURCES
+    ${UMAPANALYSIS_PLUGIN}
+    ${UMAPANALYSIS_SETTINGS}
+    ${UMAPANALYSIS_DISTANCES}
+)
+
+source_group(Plugin FILES ${UMAPANALYSIS_PLUGIN})
+source_group(Settings FILES ${UMAPANALYSIS_SETTINGS})
+source_group(Distances FILES ${UMAPANALYSIS_DISTANCES})
 source_group(Aux FILES ${UMAPANALYSIS_AUX})
 
 # -----------------------------------------------------------------------------
@@ -180,4 +197,12 @@ mv_handle_plugin_config(${UMAPANALYSIS})
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set_property(TARGET ${UMAPANALYSIS} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY $<IF:$<CONFIG:DEBUG>,${ManiVault_INSTALL_DIR}/Debug,$<IF:$<CONFIG:RELWITHDEBINFO>,${ManiVault_INSTALL_DIR}/RelWithDebInfo,${ManiVault_INSTALL_DIR}/Release>>)
     set_property(TARGET ${UMAPANALYSIS} PROPERTY VS_DEBUGGER_COMMAND $<IF:$<CONFIG:DEBUG>,"${ManiVault_INSTALL_DIR}/Debug/ManiVault Studio.exe",$<IF:$<CONFIG:RELWITHDEBINFO>,"${ManiVault_INSTALL_DIR}/RelWithDebInfo/ManiVault Studio.exe","${ManiVault_INSTALL_DIR}/Release/ManiVault Studio.exe">>)
+endif()
+
+# -----------------------------------------------------------------------------
+# Unit testing
+# -----------------------------------------------------------------------------
+if(${MV_UMAP_UNIT_TESTS})
+	MESSAGE( STATUS "Build UMAP unit tests")
+	add_subdirectory("test")
 endif()
