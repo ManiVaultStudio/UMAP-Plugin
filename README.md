@@ -35,17 +35,17 @@ Advanced settings:
 - `learning_rate`: Initial learning rate used in the gradient descent. Larger values can improve the speed of convergence but at the cost of stability.
 - `seed`: Seed to use for the Mersenne Twister when sampling negative observations.
 
-knn Settings:
-- `Algorithm`: Type of approximated knn algorithm/library to be used. Either [Annoy](https://github.com/spotify/annoy) or [HNSW](https://github.com/nmslib/hnswlib/).
+knn settings:
 - `Number knn`:  Number of neighbors to use to define the fuzzy sets. Larger values improve connectivity and favor preservation of global structure, at the cost of increased computational work.
 - `Multithreading`: Whether to use all available threads for knn computation. This will be faster while using more memory.
-- (Annoy) Trees & Checks: correspond to `n_trees` and `search_k`, see their [docs](https://github.com/spotify/annoy?tab=readme-ov-file#tradeoffs)
-- (HNSW): M & ef: are detailed in the respective [docs](https://github.com/nmslib/hnswlib/blob/master/ALGO_PARAMS.md#hnsw-algorithm-parameters)
+- `Algorithm`: Type of approximated knn algorithm/library to be used. Either [Annoy](https://github.com/spotify/annoy) or [HNSW](https://github.com/nmslib/hnswlib/).
+  - `Annoy Trees` & `Annoy Checks`: correspond to `n_trees` and `search_k`, see the respective [Annoy docs](https://github.com/spotify/annoy?tab=readme-ov-file#tradeoffs)
+  - `HNSW M` & `HNSW ef`: are detailed in the respective [HNSW docs](https://github.com/nmslib/hnswlib/blob/master/ALGO_PARAMS.md#hnsw-algorithm-parameters)
 - `Metric`:
   - Euclidean (L2): `sum((Ai-Bi)^2)`
   - Cosine: `1.0 - sum(Ai*Bi)`
   - Inner: `1.0 - sum(Ai*Bi) / sqrt(sum(Ai*Ai) * sum(Bi*Bi))`
-  - Correlation: `1.0 - corr(A, B)`. Based on [Pearson's correlation coefficient](https://en.wikipedia.org/wiki/Correlation) between data vectors. See the correlation distance in [umap-learn](https://github.com/lmcinnes/umap/blob/15e55bb6a1ca23b8d6040d9d6184a7ae98325ace/umap/distances.py#L598). Only available with HNSW. (Technically not a metric)
+  - Correlation: `1.0 - corr(A, B)`. Based on [Pearson's correlation coefficient](https://en.wikipedia.org/wiki/Correlation) between data vectors. See the correlation distance in [umap-learn](https://github.com/lmcinnes/umap/blob/15e55bb6a1ca23b8d6040d9d6184a7ae98325ace/umap/distances.py#L598). Only available with HNSW. (Technically not a metric.)
 
 ## References
 - [libscran/umappp](https://github.com/libscran/umappp): Aaron Lun, BSD 2-Clause License
