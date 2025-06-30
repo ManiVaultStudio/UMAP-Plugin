@@ -306,7 +306,7 @@ void UMAPWorker::compute()
     const KnnParameters knnParams = _knnSettingsAction->getKnnParameters();
     const int numNeighbors = knnParams.getK();
     {
-        qDebug() << "UMAP: compute knn: " << numNeighbors << " neighbors based on " << printMetric(knnParams.getKnnMetric()) << " with " << printAlgorithm(knnParams.getKnnAlgorithm());
+        qDebug() << "UMAP: compute knn: " << numNeighbors << " neighbors based on " << printMetric(knnParams.getKnnMetric()) << " distance with " << printAlgorithm(knnParams.getKnnAlgorithm());
 
         std::unique_ptr<KnnBase> searcher;
         const auto mat = DataMatrix(static_cast<size_t>(numEnabledDimensions), numPoints, data.data());
