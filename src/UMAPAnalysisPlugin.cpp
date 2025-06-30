@@ -10,8 +10,10 @@
 #include <knncolle/find_nearest_neighbors.hpp>
 #include <knncolle_annoy/knncolle_annoy.hpp>
 #include <knncolle_hnsw/knncolle_hnsw.hpp>
-#include <hnswlib/space_ip.h>
+#include <knncolle_hnsw/distances.hpp>
 #include <hnswlib/hnswlib.h>
+#include <hnswlib/space_ip.h>
+#include "hnsw/space_corr.h"
 
 // MSVC does not support all openmp functionality
 // that the umappp tries to use
@@ -306,46 +308,61 @@ void UMAPWorker::compute()
     {
         int nDim = numEnabledDimensions;
 
-        qDebug() << "UMAP: compute knn: " << numNeighbors << " neighbors";
+        qDebug() << "UMAP: compute knn: " << numNeighbors << " neighbors based on " << printMetric(knnParams.getKnnMetric()) << " with " << printAlgorithm(knnParams.getKnnAlgorithm());
 
         std::unique_ptr<KnnBase> searcher;
         const auto mat = DataMatrix(nDim, numPoints, data.data());
 
-        if (knnParams.getKnnAlgorithm() == KnnLibrary::ANNOY) {
+        if (knnParams.getKnnAlgorithm() == KnnAlgorithm::ANNOY) {
             knncolle_annoy::AnnoyOptions opt;
             opt.num_trees   = knnParams.getAnnoyNumTrees();
             opt.search_mult = knnParams.getAnnoyNumChecks();
 
-            if (knnParams.getKnnDistanceMetric() == KnnMetric::COSINE)
-                searcher = KnnAnnoyAngular(opt).build_unique(mat);
-            else if (knnParams.getKnnDistanceMetric() == KnnMetric::DOT)
-                searcher = KnnAnnoyDot(opt).build_unique(mat);
-            else
-                searcher = KnnAnnoyEuclidean(opt).build_unique(mat);
+            switch (knnParams.getKnnMetric()) {
+            case KnnMetric::COSINE:     searcher = KnnAnnoyAngular(opt).build_unique(mat); break;
+            case KnnMetric::DOT:        searcher = KnnAnnoyDot(opt).build_unique(mat); break;
+            case KnnMetric::EUCLIDEAN:  searcher = KnnAnnoyEuclidean(opt).build_unique(mat); break;
+            default:
+                qDebug() << "UMAP: unknown metric using euclidean";
+                searcher = KnnAnnoyEuclidean(opt).build_unique(mat); break;
+            }
         }
-        else // knnParams.getKnnAlgorithm() == KnnLibrary::HNSW
+        else // knnParams.getKnnAlgorithm() == KnnAlgorithm::HNSW
         {
             knncolle_hnsw::HnswOptions opt;
             opt.num_links       = knnParams.getHNSWm();
             opt.ef_search       = knnParams.getHNSWef();
             opt.ef_construction = knnParams.getHNSWef();
 
-            auto euclid_config = knncolle_hnsw::makeEuclideanDistanceConfig<scalar_t>();
-
-            auto inner_config = knncolle_hnsw::DistanceConfig<scalar_t>();
-            inner_config.create = [](std::size_t dim) -> hnswlib::SpaceInterface<scalar_t>*{
-                return static_cast<hnswlib::InnerProductSpace*>(new hnswlib::InnerProductSpace(dim));
-                };
-
-            if (knnParams.getKnnDistanceMetric() == KnnMetric::COSINE) {
+            switch (knnParams.getKnnMetric()) {
+            case KnnMetric::COSINE:
                 normalizeData(data);
-                searcher = KnnHnsw(euclid_config, opt).build_unique(mat);
-            }
-            else if (knnParams.getKnnDistanceMetric() == KnnMetric::DOT) {
+                searcher = KnnHnsw(knncolle_hnsw::makeEuclideanDistanceConfig<scalar_t>(), opt).build_unique(mat);
+                break;
+            case KnnMetric::DOT: {
+                auto inner_config = knncolle_hnsw::DistanceConfig<scalar_t>();
+                inner_config.create = [](std::size_t dim) -> hnswlib::SpaceInterface<scalar_t>*{
+                    return static_cast<hnswlib::InnerProductSpace*>(new hnswlib::InnerProductSpace(dim));
+                    };
+
                 searcher = KnnHnsw(inner_config, opt).build_unique(mat);
+                break;
             }
-            else { // Euclidean distance
-                searcher = KnnHnsw(euclid_config, opt).build_unique(mat);
+            case KnnMetric::EUCLIDEAN:  
+                searcher = KnnHnsw(knncolle_hnsw::makeEuclideanDistanceConfig<scalar_t>(), opt).build_unique(mat);
+                break;
+            case KnnMetric::CORRELATION: {
+                auto correlation_config = knncolle_hnsw::DistanceConfig<scalar_t>();
+                correlation_config.create = [](std::size_t dim) -> hnswlib::SpaceInterface<scalar_t>*{
+                    return static_cast<hnswlib::CorrelationSpace*>(new hnswlib::CorrelationSpace(dim));
+                    };
+
+                searcher = KnnHnsw(correlation_config, opt).build_unique(mat);
+                break;
+            }
+            default:
+                qDebug() << "UMAP: unknown metric using euclidean";
+                searcher = KnnHnsw(knncolle_hnsw::makeEuclideanDistanceConfig<scalar_t>(), opt).build_unique(mat);
             }
         }
 
