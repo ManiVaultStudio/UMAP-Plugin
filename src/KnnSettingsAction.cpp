@@ -1,9 +1,34 @@
 #include "KnnSettingsAction.h"
 
+#include <string>
+
+std::string printAlgorithm(const KnnAlgorithm& a) {
+    switch (a)
+    {
+    case KnnAlgorithm::ANNOY: return "Annoy";
+    case KnnAlgorithm::HNSW: return "HNSW";
+    }
+
+    return "Unkown";
+}
+
+std::string printMetric(const KnnMetric& m) {
+    switch (m)
+    {
+    case KnnMetric::EUCLIDEAN: return "Euclidean";
+    case KnnMetric::DOT: return "Dot";
+    case KnnMetric::COSINE: return "Cosine";
+    case KnnMetric::CORRELATION: return "Correlation";
+    }
+
+    return "Unkown";
+}
+
 KnnSettingsAction::KnnSettingsAction(QObject* parent) :
     GroupAction(parent, "Knn Settings"),
     _knnParameters(),
     _knnAlgorithm(this, "Algorithm"),
+    _knnMetric(this, "Metric"),
     _kAction(this, "Number kNN"),
     _multithreadActions(this, "Use multithreading", true),
     _numTreesAction(this, "Annoy Trees"),
@@ -15,6 +40,7 @@ KnnSettingsAction::KnnSettingsAction(QObject* parent) :
     setSerializationName("Knn Settings");
 
     addAction(&_knnAlgorithm);
+    addAction(&_knnMetric);
     addAction(&_kAction);
 
 #ifdef USE_OPENMP
@@ -34,6 +60,7 @@ KnnSettingsAction::KnnSettingsAction(QObject* parent) :
     _efAction.setDefaultWidgetFlags(IntegralAction::SpinBox);
 
     _knnAlgorithm.initialize({ "Annoy", "HNSW" }, "Annoy");
+    _knnMetric.initialize({ "Euclidean", "Cosine", "Inner", "Correlation"}, "Euclidean");
     _kAction.initialize(1, 150, 20);
     _numTreesAction.initialize(1, 10000, 8);
     _numChecksAction.initialize(1, 10000, 512);
@@ -45,10 +72,35 @@ KnnSettingsAction::KnnSettingsAction(QObject* parent) :
 #endif // !NDEBUG
 
     const auto updateKnnAlgorithm = [this]() -> void {
-        if(_knnAlgorithm.getCurrentIndex() == 0)
-            _knnParameters.setKnnAlgorithm(KnnLibrary::ANNOY);
-        else if (_knnAlgorithm.getCurrentIndex() == 1)
-            _knnParameters.setKnnAlgorithm(KnnLibrary::HNSW);
+        auto currentAlgorithmIntex = _knnAlgorithm.getCurrentIndex();
+
+        KnnAlgorithm newAlg = KnnAlgorithm::HNSW;
+
+        if(currentAlgorithmIntex == 0)
+            newAlg = KnnAlgorithm::ANNOY;
+        else if (currentAlgorithmIntex == 1)
+            newAlg = KnnAlgorithm::HNSW;
+
+        _knnParameters.setKnnAlgorithm(newAlg);
+        };
+
+    const auto updateKnnMetric = [this]() -> void {
+        auto currentMetricIntex = _knnMetric.getCurrentIndex();
+
+        KnnMetric newMetric = KnnMetric::EUCLIDEAN;
+
+        if(currentMetricIntex == 0)
+            newMetric = KnnMetric::EUCLIDEAN;
+        else if (currentMetricIntex == 1)
+            newMetric = KnnMetric::COSINE;
+        else if (currentMetricIntex == 2)
+            newMetric = KnnMetric::DOT;
+        else if (currentMetricIntex == 3) {
+            newMetric = KnnMetric::CORRELATION;
+            _knnAlgorithm.setCurrentIndex(1); // only implemented for hnsw
+        }
+
+        _knnParameters.setKnnMetric(newMetric);
         };
 
     const auto updateNumTrees = [this]() -> void {
@@ -75,6 +127,7 @@ KnnSettingsAction::KnnSettingsAction(QObject* parent) :
         const auto enable = !isReadOnly();
 
         _knnAlgorithm.setEnabled(enable);
+        _knnMetric.setEnabled(enable);
         _kAction.setEnabled(enable);
         _multithreadActions.setEnabled(enable);
         _numTreesAction.setEnabled(enable);
@@ -85,6 +138,10 @@ KnnSettingsAction::KnnSettingsAction(QObject* parent) :
 
     connect(&_knnAlgorithm, &OptionAction::currentIndexChanged, this, [this, updateKnnAlgorithm](const std::int32_t& value) {
         updateKnnAlgorithm();
+        });
+
+    connect(&_knnMetric, &OptionAction::currentIndexChanged, this, [this, updateKnnMetric](const std::int32_t& value) {
+        updateKnnMetric();
         });
 
     connect(&_kAction, &IntegralAction::valueChanged, this, [this, updateK](const std::int32_t& value) {
@@ -112,6 +169,7 @@ KnnSettingsAction::KnnSettingsAction(QObject* parent) :
         });
 
     updateKnnAlgorithm();
+    updateKnnMetric();
     updateK();
     updateNumTrees();
     updateNumChecks();
