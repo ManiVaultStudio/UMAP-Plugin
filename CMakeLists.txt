@@ -52,10 +52,12 @@ include(CMakeCPMDependencies)
 find_package(Qt6 COMPONENTS Widgets WebEngineWidgets Concurrent REQUIRED)
 find_package(ManiVault COMPONENTS Core PointData CONFIG QUIET)
 
-find_package(OpenMP)
+if(MV_UMAP_USE_OPENMP)
+    find_package(OpenMP)
 
-if(OpenMP_CXX_FOUND)
-    message(STATUS "Found OpenMP")
+    if(OpenMP_CXX_FOUND)
+        message(STATUS "Found OpenMP")
+    endif()
 endif()
 
 find_package(libscran_umappp CONFIG QUIET)
