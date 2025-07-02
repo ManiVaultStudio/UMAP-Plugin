@@ -252,27 +252,51 @@ namespace knncolle_hnsw {
             my_index(my_space.get(), my_obs, options.num_links, options.ef_construction)
         {
             auto work = data.new_extractor();
+            auto work_par = dynamic_cast<knncolle::ParallelMatrixExtractor<Data_>*>(work.get());
+
             if constexpr (std::is_same<Data_, HnswData_>::value) {
-                auto ptr = work->next();
-                my_index.addPoint(ptr, 0);
-                const unsigned num_threads = std::thread::hardware_concurrency();
-                hnswlib::ParallelFor(1, my_obs, num_threads, [&](size_t i, size_t threadId) {
-                    auto ptr = work->next();
-                    my_index.addPoint(ptr, i);
-                    });
+
+                if (work_par == nullptr) {
+                    for (Index_ i = 0; i < my_obs; ++i) {
+                        auto ptr = work->next();
+                        my_index.addPoint(ptr, i);
+                    }
+                }
+                else {
+                    auto ptr = work_par->get(0);
+                    my_index.addPoint(ptr, 0);
+                    const unsigned num_threads = std::thread::hardware_concurrency();
+                    hnswlib::ParallelFor(1, my_obs, num_threads, [&](size_t i, size_t threadId) {
+                        auto ptr = work_par->get(i);
+                        my_index.addPoint(ptr, i);
+                        });
+                }
+
             }
             else {
-                std::vector<HnswData_> incoming(my_dim);
-                auto ptr = work->next();
-                std::copy_n(ptr, my_dim, incoming.begin());
-                my_index.addPoint(incoming.data(), 0);
-                const unsigned num_threads = std::thread::hardware_concurrency();
-                hnswlib::ParallelFor(1, my_obs, num_threads, [&](size_t i, size_t threadId) {
+
+                if (work_par == nullptr) {
                     std::vector<HnswData_> incoming(my_dim);
-                    auto ptr = work->next();
+                    for (Index_ i = 0; i < my_obs; ++i) {
+                        auto ptr = work->next();
+                        std::copy_n(ptr, my_dim, incoming.begin());
+                        my_index.addPoint(incoming.data(), i);
+                    }
+                }
+                else {
+                    std::vector<HnswData_> incoming(my_dim);
+                    auto ptr = work_par->get(0);
                     std::copy_n(ptr, my_dim, incoming.begin());
-                    my_index.addPoint(incoming.data(), i);
-                    });
+                    my_index.addPoint(incoming.data(), 0);
+                    const unsigned num_threads = std::thread::hardware_concurrency();
+                    hnswlib::ParallelFor(1, my_obs, num_threads, [&](size_t i, size_t threadId) {
+                        std::vector<HnswData_> incoming(my_dim);
+                        auto ptr = work_par->get(i);
+                        std::copy_n(ptr, my_dim, incoming.begin());
+                        my_index.addPoint(incoming.data(), i);
+                        });
+                }
+
             }
 
             my_index.setEf(options.ef_search);

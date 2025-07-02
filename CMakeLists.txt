@@ -111,6 +111,7 @@ set(UMAPANALYSIS_SETTINGS
 set(UMAPANALYSIS_DISTANCES
     src/hnsw/space_corr.h
     src/knncolle_hnsw/knncolle_hnsw_parallel.h
+    src/knncolle/Matrix_parallel.h
 )
 
 set(UMAPANALYSIS_AUX
