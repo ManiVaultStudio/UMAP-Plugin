@@ -2,7 +2,7 @@
 
 #include <knncolle_hnsw/knncolle_hnsw.hpp>
 
-#include "util/knncolle_matrix_parallel.h"
+#include "knncolle_matrix_parallel.h"
 
 #include <atomic>
 #include <thread>
