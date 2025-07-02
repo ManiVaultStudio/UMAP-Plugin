@@ -16,7 +16,7 @@
 #include <hnswlib/space_ip.h>
 
 #include "hnsw/space_corr.h"
-#include "knncolle/Matrix_parallel.h"
+#include "knncolle_base/Matrix_parallel.h"
 
 // MSVC does not support all openmp functionality
 // that the umappp tries to use
