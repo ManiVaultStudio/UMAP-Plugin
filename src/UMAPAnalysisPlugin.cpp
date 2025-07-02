@@ -292,14 +292,25 @@ void UMAPWorker::compute()
     _inputDataset->populateDataForDimensions<std::vector<scalar_t>, std::vector<unsigned int>>(data, indices);
 
     // determine threading
-    unsigned int nThreads = 1;
+    const bool parallel_knn = _knnSettingsAction->getMultithreadAction().isChecked();
+    const bool parallel_layout = _advSettingsAction->getMultithreadAction().isChecked();
+    unsigned int num_threads_knn = 1;
+    unsigned int num_threads_layout = 1;
 
 #ifdef _OPENMP
-    if (_knnSettingsAction->getMultithreadAction().isChecked())
     {
-        nThreads = omp_get_max_threads();
-        if (nThreads <= 0)
-            nThreads = 1;
+        unsigned int num_threads_available = omp_get_max_threads();
+        if (num_threads_available <= 0) {
+            num_threads_available = 1;
+        }
+
+        if (parallel_knn) {
+            num_threads_knn = num_threads_available;
+        }
+
+        if (num_threads_layout) {
+            num_threads_layout = num_threads_available;
+        }
     }
 #endif
 
@@ -309,6 +320,7 @@ void UMAPWorker::compute()
     const int numNeighbors = knnParams.getK();
     {
         qDebug() << "UMAP: compute knn: " << numNeighbors << " neighbors based on " << printMetric(knnParams.getKnnMetric()) << " distance with " << printAlgorithm(knnParams.getKnnAlgorithm());
+        qDebug() << "UMAP: adding vectors to knn searcher";
 
         std::unique_ptr<KnnBase> searcher;
         const auto mat = DataMatrix(static_cast<size_t>(numEnabledDimensions), numPoints, data.data());
@@ -366,11 +378,13 @@ void UMAPWorker::compute()
             }
         }
 
-        nearestNeighbors = knncolle::find_nearest_neighbors<integer_t, scalar_t, scalar_t>(*searcher, numNeighbors, nThreads);
+        qDebug() << "UMAP: querying knn in searcher";
+        nearestNeighbors = knncolle::find_nearest_neighbors<integer_t, scalar_t, scalar_t>(*searcher, numNeighbors, num_threads_knn);
+        qDebug() << "UMAP: finished knn";
 
     }
 
-    qDebug() << "UMAP: initializing...";
+    qDebug() << "UMAP: initializing layout...";
 
     const auto advancedSettings = _advSettingsAction->getAdvParameters();
 
@@ -387,17 +401,22 @@ void UMAPWorker::compute()
         opt.initialize = umappp::InitializeMethod::SPECTRAL;
 
      // advanced settings
-    opt.local_connectivity  = advancedSettings.local_connectivity;
-    opt.bandwidth           = advancedSettings.bandwidth;
-    opt.mix_ratio           = advancedSettings.mix_ratio;
-    opt.spread              = advancedSettings.spread;
-    opt.min_dist            = advancedSettings.min_dist;
-    opt.a                   = advancedSettings.a;
-    opt.b                   = advancedSettings.b;
-    opt.repulsion_strength  = advancedSettings.repulsion_strength;
-    opt.learning_rate       = advancedSettings.learning_rate;
+    opt.local_connectivity   = advancedSettings.local_connectivity;
+    opt.bandwidth            = advancedSettings.bandwidth;
+    opt.mix_ratio            = advancedSettings.mix_ratio;
+    opt.spread               = advancedSettings.spread;
+    opt.min_dist             = advancedSettings.min_dist;
+    opt.a                    = advancedSettings.a;
+    opt.b                    = advancedSettings.b;
+    opt.repulsion_strength   = advancedSettings.repulsion_strength;
+    opt.learning_rate        = advancedSettings.learning_rate;
     opt.negative_sample_rate = advancedSettings.negative_sample_rate;
-    opt.seed                = advancedSettings.seed;
+    opt.seed                 = advancedSettings.seed;
+
+    if (parallel_layout) {
+        opt.parallel_optimization   = true;
+        opt.num_threads             = num_threads_layout;
+    }
 
     auto status = umappp::initialize<integer_t, scalar_t>(nearestNeighbors, _outDimensions, _embedding.data(), opt);
 

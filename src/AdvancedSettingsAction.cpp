@@ -13,6 +13,7 @@ AdvancedSettingsAction::AdvancedSettingsAction(QObject* parent) :
     _repulsion_strength(this, "repulsion strength"),
     _learning_rate(this, "learning rate"),
     _negative_sample_rate(this, "negative sample rate"),
+    _multithreadActions(this, "Multithreading (for many cores)", false),
     _seed(this, "seed")
 {
     setText("Advanced Settings");
@@ -30,6 +31,10 @@ AdvancedSettingsAction::AdvancedSettingsAction(QObject* parent) :
     addAction(&_negative_sample_rate);
     addAction(&_seed);
 
+#ifdef _OPENMP
+    addAction(&_multithreadActions);
+#endif
+
     _local_connectivity.initialize(0, 10, _advParameters.local_connectivity, 2);
     _bandwidth.initialize(0, 10, _advParameters.bandwidth, 2);
     _mix_ratio.initialize(0, 1, _advParameters.mix_ratio, 2);
@@ -41,6 +46,8 @@ AdvancedSettingsAction::AdvancedSettingsAction(QObject* parent) :
     _learning_rate.initialize(0, 10, _advParameters.learning_rate, 2);
     _negative_sample_rate.initialize(0, 10, _advParameters.negative_sample_rate, 2);
     _seed.initialize(1, 2000000000, _advParameters.seed);
+
+    _multithreadActions.setToolTip("Use more memory to increase computation speed\nThis option is only useful if you have many cores\n4 is not a lot.");
 
     // Close the advanced settings by default
     collapse();
@@ -102,6 +109,7 @@ AdvancedSettingsAction::AdvancedSettingsAction(QObject* parent) :
         _repulsion_strength.setEnabled(enable);
         _learning_rate.setEnabled(enable);
         _negative_sample_rate.setEnabled(enable);
+        _multithreadActions.setEnabled(enable);
         _seed.setEnabled(enable);
         };
 
@@ -181,6 +189,7 @@ void AdvancedSettingsAction::fromVariantMap(const QVariantMap& variantMap)
     _repulsion_strength.fromParentVariantMap(variantMap);
     _learning_rate.fromParentVariantMap(variantMap);
     _negative_sample_rate.fromParentVariantMap(variantMap);
+    _multithreadActions.fromParentVariantMap(variantMap);
     _seed.fromParentVariantMap(variantMap);
 }
 
@@ -198,6 +207,7 @@ QVariantMap AdvancedSettingsAction::toVariantMap() const
     _repulsion_strength.insertIntoVariantMap(variantMap);
     _learning_rate.insertIntoVariantMap(variantMap);
     _negative_sample_rate.insertIntoVariantMap(variantMap);
+    _multithreadActions.insertIntoVariantMap(variantMap);
     _seed.insertIntoVariantMap(variantMap);
 
     return variantMap;
