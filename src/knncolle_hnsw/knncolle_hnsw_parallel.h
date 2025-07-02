@@ -1,6 +1,7 @@
 #pragma once
 
 #include <knncolle_hnsw/knncolle_hnsw.hpp>
+#include "knncolle/Matrix_parallel.h"
 
 #include <atomic>
 #include <thread>
