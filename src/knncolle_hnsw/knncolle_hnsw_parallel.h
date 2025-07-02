@@ -12,14 +12,15 @@
 #include <queue>
 #include <utility>
 
+/*
+* Source: https://github.com/nmslib/nmslib/blob/v2.1.1/similarity_search/include/thread_pool.h#L62
+* Apache License Version 2.0, Main developers: Bilegsaikhan Naidan, Leonid Boytsov, Yury Malkov, Ben Frederickson, David Novak
+*/
 namespace hnswlib {
     /*
     * replacement for the openmp '#pragma omp parallel for' directive
     * only handles a subset of functionality (no reductions etc)
     * Process ids from start (inclusive) to end (EXCLUSIVE)
-    *
-    * Source: https://github.com/nmslib/nmslib/blob/v2.1.1/similarity_search/include/thread_pool.h#L62
-    * Apache License Version 2.0, Main developers: Bilegsaikhan Naidan, Leonid Boytsov, Yury Malkov, Ben Frederickson, David Novak
     */
     template<class Function>
     inline void ParallelFor(size_t start, size_t end, size_t numThreads, Function fn) {
@@ -79,11 +80,12 @@ namespace hnswlib {
 
 } // namespace hnswlib
 
+
+/**
+    * Source: https://github.com/knncolle/knncolle_hnsw/blob/v0.2.1/include/knncolle_hnsw/knncolle_hnsw.hpp
+    * MIT License, Main developer: Aaron Lun
+*/
 namespace knncolle_hnsw {
-    /**
-     * Source: https://github.com/knncolle/knncolle_hnsw/blob/v0.2.1/include/knncolle_hnsw/knncolle_hnsw.hpp
-     * MIT License, Main developer: Aaron Lun
-    */
 
     template<typename Index_, typename Data_, typename Distance_, typename HnswData_>
     class HnswPrebuiltParallel;
