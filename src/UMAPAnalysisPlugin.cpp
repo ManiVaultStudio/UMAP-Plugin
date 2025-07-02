@@ -6,17 +6,18 @@
 #include <PointData/DimensionsPickerAction.h>
 #include <PointData/InfoAction.h>
 
+#include <hnswlib/hnswlib.h>
+#include <hnswlib/space_ip.h>
+
 #include <knncolle/Builder.hpp>
 #include <knncolle/Prebuilt.hpp>
 #include <knncolle/find_nearest_neighbors.hpp>
 #include <knncolle_annoy/knncolle_annoy.hpp>
-#include "knncolle_hnsw/knncolle_hnsw_parallel.h"
 #include <knncolle_hnsw/distances.hpp>
-#include <hnswlib/hnswlib.h>
-#include <hnswlib/space_ip.h>
 
-#include "hnsw/space_corr.h"
-#include "knncolle_base/Matrix_parallel.h"
+#include "util/hnsw_space_corr.h"
+#include "util/knncolle_matrix_parallel.h"
+#include "util/knncolle_hnsw_parallel.h"
 
 // MSVC does not support all openmp functionality
 // that the umappp tries to use

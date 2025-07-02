@@ -6,13 +6,11 @@
 #include <knncolle_hnsw/knncolle_hnsw.hpp>
 #include <knncolle_hnsw/distances.hpp>
 
-#include "knncolle/Matrix_parallel.h"
-#include "knncolle_hnsw/knncolle_hnsw_parallel.h"
+#include "util/hnsw_space_corr.h"
+#include "util/knncolle_matrix_parallel.h"
+#include "util/knncolle_hnsw_parallel.h"
 
 #include "test_utils.h"
-
-#include "hnsw/space_corr.h"
-#include "knncolle/Matrix_parallel.h"
 
 #include <cstdint>
 #include <format>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "hnswlib/hnswlib.h"
+#include <hnswlib/hnswlib.h>
 
 #include <cmath>
 
