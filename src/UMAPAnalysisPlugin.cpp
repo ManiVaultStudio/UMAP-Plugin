@@ -19,20 +19,10 @@
 #include "util/knncolle_matrix_parallel.h"
 #include "util/knncolle_hnsw_parallel.h"
 
-// MSVC does not support all openmp functionality
-// that the umappp tries to use
-#ifdef _OPENMP
-#define _OPENMP_CACHED _OPENMP
-#undef _OPENMP
-#endif
 #pragma warning(disable:4267) // umapp internal: conversion warning
 #include <umappp/initialize.hpp>
 #include <umappp/Options.hpp>
 #pragma warning(default:4267)
-#ifdef _OPENMP_CACHED
-#define _OPENMP _OPENMP_CACHED
-#undef _OPENMP_CACHED
-#endif
 
 #include <QDebug>
 #include <QtCore>
