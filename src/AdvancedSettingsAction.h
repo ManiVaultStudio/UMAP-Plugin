@@ -5,6 +5,7 @@
 #include "actions/DecimalAction.h"
 #include "actions/GroupAction.h"
 #include "actions/IntegralAction.h"
+#include "actions/ToggleAction.h"
 
 using namespace mv::gui;
 
@@ -53,6 +54,7 @@ public: // Action getters
     DecimalAction& getRepulsionStrengthAction() { return _repulsion_strength; };
     DecimalAction& getLearningRateAction() { return _learning_rate; };
     DecimalAction& getNegativeSampleRateAction() { return _negative_sample_rate; };
+    ToggleAction& getMultithreadAction() { return _multithreadActions; }
     IntegralAction& getSeedAction() { return _seed; };
 
 public: // Serialization
@@ -82,5 +84,6 @@ protected:
     DecimalAction           _repulsion_strength;
     DecimalAction           _learning_rate;
     DecimalAction           _negative_sample_rate;
+    ToggleAction            _multithreadActions;        /** Whether to use multiple threads */
     IntegralAction          _seed;
 };

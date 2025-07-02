@@ -6,29 +6,23 @@
 #include <PointData/DimensionsPickerAction.h>
 #include <PointData/InfoAction.h>
 
-#include <knncolle/knncolle.hpp>
-#include <knncolle/find_nearest_neighbors.hpp>
-#include <knncolle_annoy/knncolle_annoy.hpp>
-#include <knncolle_hnsw/knncolle_hnsw.hpp>
-#include <knncolle_hnsw/distances.hpp>
 #include <hnswlib/hnswlib.h>
 #include <hnswlib/space_ip.h>
-#include "hnsw/space_corr.h"
 
-// MSVC does not support all openmp functionality
-// that the umappp tries to use
-#ifdef _OPENMP
-#define _OPENMP_CACHED _OPENMP
-#undef _OPENMP
-#endif
+#include <knncolle/Builder.hpp>
+#include <knncolle/Prebuilt.hpp>
+#include <knncolle/find_nearest_neighbors.hpp>
+#include <knncolle_annoy/knncolle_annoy.hpp>
+#include <knncolle_hnsw/distances.hpp>
+
+#include "util/hnsw_space_corr.h"
+#include "util/knncolle_matrix_parallel.h"
+#include "util/knncolle_hnsw_parallel.h"
+
 #pragma warning(disable:4267) // umapp internal: conversion warning
 #include <umappp/initialize.hpp>
 #include <umappp/Options.hpp>
 #pragma warning(default:4267)
-#ifdef _OPENMP_CACHED
-#define _OPENMP _OPENMP_CACHED
-#undef _OPENMP_CACHED
-#endif
 
 #include <QDebug>
 #include <QtCore>
@@ -45,14 +39,14 @@ Q_PLUGIN_METADATA(IID "studio.manivault.UMAPAnalysisPlugin")
 using namespace mv;
 using namespace mv::plugin;
 
-using DataMatrix        = knncolle::SimpleMatrix< /* observation index */ integer_t, /* data type */ scalar_t>;
+using DataMatrix        = knncolle::ParallelMatrix< /* observation index */ integer_t, /* data type */ scalar_t>;
 using KnnBase           = knncolle::Prebuilt< /* observation index */ integer_t, /* data type */ scalar_t, /* distance type */ scalar_t>;
 
 using KnnAnnoyEuclidean = knncolle_annoy::AnnoyBuilder<integer_t, scalar_t, scalar_t, Annoy::Euclidean>;
 using KnnAnnoyAngular   = knncolle_annoy::AnnoyBuilder<integer_t, scalar_t, scalar_t, Annoy::Angular>;
 using KnnAnnoyDot       = knncolle_annoy::AnnoyBuilder<integer_t, scalar_t, scalar_t, Annoy::DotProduct>;
 
-using KnnHnsw           = knncolle_hnsw::HnswBuilder<integer_t, scalar_t, scalar_t, DataMatrix>;
+using KnnHnsw           = knncolle_hnsw::HnswBuilderParallel<integer_t, scalar_t, scalar_t, DataMatrix>;
 
 static void normalizeData(std::vector<scalar_t>& data) {
     float norm = 0.0f;
@@ -288,23 +282,35 @@ void UMAPWorker::compute()
     _inputDataset->populateDataForDimensions<std::vector<scalar_t>, std::vector<unsigned int>>(data, indices);
 
     // determine threading
-    unsigned int nThreads = 1;
+    const bool parallel_knn = _knnSettingsAction->getMultithreadAction().isChecked();
+    const bool parallel_layout = _advSettingsAction->getMultithreadAction().isChecked();
+    unsigned int num_threads_knn = 1;
+    unsigned int num_threads_layout = 1;
 
 #ifdef _OPENMP
-    if (_knnSettingsAction->getMultithreadAction().isChecked())
     {
-        nThreads = omp_get_max_threads();
-        if (nThreads <= 0)
-            nThreads = 1;
+        unsigned int num_threads_available = omp_get_max_threads();
+        if (num_threads_available <= 0) {
+            num_threads_available = 1;
+        }
+
+        if (parallel_knn) {
+            num_threads_knn = num_threads_available;
+        }
+
+        if (num_threads_layout) {
+            num_threads_layout = num_threads_available;
+        }
     }
 #endif
 
     // compute knn
-    knncolle::NeighborList<integer_t, scalar_t> nearestNeighbors(numPoints);
+    knncolle::NeighborList<integer_t, scalar_t> nearestNeighbors;
     const KnnParameters knnParams = _knnSettingsAction->getKnnParameters();
     const int numNeighbors = knnParams.getK();
     {
         qDebug() << "UMAP: compute knn: " << numNeighbors << " neighbors based on " << printMetric(knnParams.getKnnMetric()) << " distance with " << printAlgorithm(knnParams.getKnnAlgorithm());
+        qDebug() << "UMAP: adding vectors to knn searcher";
 
         std::unique_ptr<KnnBase> searcher;
         const auto mat = DataMatrix(static_cast<size_t>(numEnabledDimensions), numPoints, data.data());
@@ -362,11 +368,13 @@ void UMAPWorker::compute()
             }
         }
 
-        nearestNeighbors = knncolle::find_nearest_neighbors<integer_t, scalar_t, scalar_t>(*searcher, numNeighbors, nThreads);
+        qDebug() << "UMAP: querying knn in searcher";
+        nearestNeighbors = knncolle::find_nearest_neighbors<integer_t, scalar_t, scalar_t>(*searcher, numNeighbors, num_threads_knn);
+        qDebug() << "UMAP: finished knn";
 
     }
 
-    qDebug() << "UMAP: initializing...";
+    qDebug() << "UMAP: initializing layout...";
 
     const auto advancedSettings = _advSettingsAction->getAdvParameters();
 
@@ -383,17 +391,22 @@ void UMAPWorker::compute()
         opt.initialize = umappp::InitializeMethod::SPECTRAL;
 
      // advanced settings
-    opt.local_connectivity  = advancedSettings.local_connectivity;
-    opt.bandwidth           = advancedSettings.bandwidth;
-    opt.mix_ratio           = advancedSettings.mix_ratio;
-    opt.spread              = advancedSettings.spread;
-    opt.min_dist            = advancedSettings.min_dist;
-    opt.a                   = advancedSettings.a;
-    opt.b                   = advancedSettings.b;
-    opt.repulsion_strength  = advancedSettings.repulsion_strength;
-    opt.learning_rate       = advancedSettings.learning_rate;
+    opt.local_connectivity   = advancedSettings.local_connectivity;
+    opt.bandwidth            = advancedSettings.bandwidth;
+    opt.mix_ratio            = advancedSettings.mix_ratio;
+    opt.spread               = advancedSettings.spread;
+    opt.min_dist             = advancedSettings.min_dist;
+    opt.a                    = advancedSettings.a;
+    opt.b                    = advancedSettings.b;
+    opt.repulsion_strength   = advancedSettings.repulsion_strength;
+    opt.learning_rate        = advancedSettings.learning_rate;
     opt.negative_sample_rate = advancedSettings.negative_sample_rate;
-    opt.seed                = advancedSettings.seed;
+    opt.seed                 = advancedSettings.seed;
+
+    if (parallel_layout) {
+        opt.parallel_optimization   = true;
+        opt.num_threads             = num_threads_layout;
+    }
 
     auto status = umappp::initialize<integer_t, scalar_t>(nearestNeighbors, _outDimensions, _embedding.data(), opt);
 

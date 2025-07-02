@@ -5,8 +5,11 @@
 
 #include <iostream>
 #include <cmath>
+#include <string>
 #include <random>
 #include <vector>
+#include <cstdint>
+#include <utility>
 
 namespace testing {
 
@@ -31,30 +34,36 @@ namespace testing {
 	/// DATA CREATION ///
 	/// ///////////// ///
 
+	template<typename scalar = float>
 	class DataGenerator {
 	public:
-		DataGenerator(const float range = 1.f) {
+		DataGenerator(const scalar rangeMin = -1.f, const scalar rangeMax = 1.f) {
 			gen.seed(42);
-			dist = std::uniform_real_distribution<float>(-1.f * range, range);
+			dist = std::uniform_real_distribution<scalar>(rangeMin, rangeMax);
 		}
 
 		// Helper function to generate random vector
-		std::vector<float> randomVector(size_t dim) {
-			std::vector<float> vec(dim);
+		std::vector<scalar> randomVector(size_t dim) {
+			std::vector<scalar> vec(dim);
 			for (size_t i = 0; i < dim; i++) {
 				vec[i] = dist(gen);
 			}
 			return vec;
 		}
 
+		// Helper function to generate random matrix
+		std::vector<scalar> randomMatrix(size_t dim, size_t numPoints) {
+			return randomVector(dim * numPoints);
+		}
+
 		// Helper function to generate constant vector
-		std::vector<float> constantVector(size_t dim, float value) {
-			return std::vector<float>(dim, value);
+		std::vector<scalar> constantVector(size_t dim, scalar value) {
+			return std::vector<scalar>(dim, value);
 		}
 
 		// Helper function to generate linearly increasing vector
-		std::vector<float> linearVector(size_t dim, float start = 0.0f, float step = 1.0f) {
-			std::vector<float> vec(dim);
+		std::vector<scalar> linearVector(size_t dim, scalar start = 0.0f, scalar step = 1.0f) {
+			std::vector<scalar> vec(dim);
 			for (size_t i = 0; i < dim; i++) {
 				vec[i] = start + i * step;
 			}
@@ -63,7 +72,39 @@ namespace testing {
 
 	private:
 		std::mt19937 gen;
-		std::uniform_real_distribution<float> dist;
+		std::uniform_real_distribution<scalar> dist;
 	};
+
+	/// /////// ///
+	/// LOGGING ///
+	/// /////// ///
+
+	template<typename T, typename S>
+	inline void print(const std::pair<T, S>& pair) {
+		std::cout << pair.first << " : " << pair.second << "\n";
+	}
+
+	template<typename T, typename S>
+	inline void print(const std::vector<std::pair<T, S>>& pairs) {
+		for (const auto& pair : pairs)
+			print(pair);
+		std::cout << std::endl;
+	}
+
+	template<typename T>
+	void print(const std::vector<T>& vec) {
+		for (const auto& val : vec) {
+			std::cout << val << " ";
+		}
+		std::cout << std::endl;
+	}
+
+	void info(const std::string& message) {
+		std::cout << message << std::endl;
+	}
+
+	void printDuration(uint64_t t, const std::string& unit = "ms") {
+		std::cout << "Duration: " << t <<  unit << std::endl;
+	}
 
 }

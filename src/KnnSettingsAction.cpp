@@ -42,15 +42,14 @@ KnnSettingsAction::KnnSettingsAction(QObject* parent) :
     addAction(&_knnAlgorithm);
     addAction(&_knnMetric);
     addAction(&_kAction);
-
-#ifdef USE_OPENMP
-    addAction(&_multithreadActions);
-#endif
-
     addAction(&_numTreesAction);
     addAction(&_numChecksAction);
     addAction(&_mAction);
     addAction(&_efAction);
+
+#ifdef _OPENMP
+    addAction(&_multithreadActions);
+#endif
 
     _multithreadActions.setToolTip("Use more memory to increase computation speed");
 
