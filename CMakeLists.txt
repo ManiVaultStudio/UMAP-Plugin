@@ -141,6 +141,9 @@ add_library(${UMAPANALYSIS} SHARED ${UMAPANALYSIS_SOURCES} ${UMAPANALYSIS_AUX})
 # Include ManiVault headers, including system data plugins
 target_include_directories(${UMAPANALYSIS} PRIVATE "${ManiVault_INCLUDE_DIR}")
 
+# Inlcude own sources for cross-platform include consitency
+target_include_directories(${UMAPANALYSIS} PRIVATE "${${CMAKE_CURRENT_SOURCE_DIR}/src}")
+
 # -----------------------------------------------------------------------------
 # Target properties
 # -----------------------------------------------------------------------------
