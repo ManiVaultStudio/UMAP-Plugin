@@ -225,7 +225,6 @@ QVariantMap UMAPAnalysisPlugin::toVariantMap() const
 UMAPWorker::UMAPWorker(Dataset<Points>& inputPoints, DatasetTask* parentTask, int outDim, SettingsAction* settings, KnnSettingsAction* knnSettings, AdvancedSettingsAction* advSettings):
     _shouldStop(false),
     _inputDataset(inputPoints),
-    _computeTask(nullptr),
     _parentTask(parentTask),
     _settingsAction(settings),
     _knnSettingsAction(knnSettings),
@@ -234,6 +233,8 @@ UMAPWorker::UMAPWorker(Dataset<Points>& inputPoints, DatasetTask* parentTask, in
     _outDimensions(outDim)
 {
     _embedding.resize(inputPoints->getNumPoints() * static_cast<size_t>(_outDimensions));
+
+    connect(_parentTask, &DatasetTask::requestAbort, this, &UMAPWorker::stop, Qt::DirectConnection);
 }
 
 void UMAPWorker::changeThread(QThread* targetThread)
@@ -246,19 +247,24 @@ void UMAPWorker::resetThread()
     changeThread(QCoreApplication::instance()->thread());
 }
 
+void UMAPWorker::stop()
+{
+    qDebug() << "UMAP: user requested manual stop";
+    _shouldStop = true;
+}
+
 void UMAPWorker::compute()
 {
-    _computeTask = std::make_unique<mv::Task>(this, "UMAP analysis", Task::GuiScopes{ Task::GuiScope::DataHierarchy, Task::GuiScope::Foreground }, Task::Status::Idle);
-
-    _computeTask->setParentTask(_parentTask);
-    
-    connect(_parentTask, &Task::requestAbort, this, [this]() -> void { _shouldStop = true; }, Qt::DirectConnection);
-
-    _computeTask->setRunning();
-    _computeTask->setProgressDescription("Initializing...");
-    QCoreApplication::processEvents();
+    auto cleanup = [this]() -> void {
+        _parentTask->setFinished();
+        emit finished();
+        resetThread();
+        };
 
     _shouldStop = false;
+    _parentTask->setRunning();
+    _parentTask->setProgressDescription("Computing knn");
+    QCoreApplication::processEvents();
 
     // Get the number of epochs from the settings
     const auto numberOfEpochs = _settingsAction->getNumberOfEpochsAction().getValue();
@@ -374,7 +380,14 @@ void UMAPWorker::compute()
 
     }
 
+    if (_shouldStop) {
+        cleanup();
+        return;
+    }
+
     qDebug() << "UMAP: initializing layout...";
+    _parentTask->setProgressDescription("Initializing layout");
+    QCoreApplication::processEvents();
 
     const auto advancedSettings = _advSettingsAction->getAdvParameters();
 
@@ -417,10 +430,8 @@ void UMAPWorker::compute()
 
     updateEmbedding(0);
 
-    if (numberOfEpochs == 0 || _shouldStop)
-    {
-        _shouldStop = false;
-        emit finished();
+    if (numberOfEpochs == 0 || _shouldStop) {
+        cleanup();
         return;
     }
 
@@ -440,8 +451,8 @@ void UMAPWorker::compute()
             updateEmbedding(epoch);
 
         // update status progress each iteration
-        _computeTask->setProgress(epoch / static_cast<float>(numberOfEpochs));
-        _computeTask->setProgressDescription(QString("Epoch %1/%2").arg(QString::number(epoch), QString::number(numberOfEpochs)));
+        _parentTask->setProgress(epoch / static_cast<float>(numberOfEpochs));
+        _parentTask->setProgressDescription(QString("Epoch %1/%2").arg(QString::number(epoch), QString::number(numberOfEpochs)));
         _settingsAction->getCurrentEpochAction().setString(QString::number(epoch));
         QCoreApplication::processEvents();
     }
@@ -450,12 +461,7 @@ void UMAPWorker::compute()
 
     qDebug() << "UMAP: total epochs: " << status.epoch() + 1;
 
-    // Flag the analysis task as finished
-    _computeTask->setFinished();
-
-    emit finished();
-
-    resetThread();
+    cleanup();
 }
 
 UMAPAnalysisPluginFactory::UMAPAnalysisPluginFactory()
