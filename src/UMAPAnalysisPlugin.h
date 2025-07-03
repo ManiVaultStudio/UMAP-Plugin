@@ -80,7 +80,7 @@ private:
  */
 class UMAPAnalysisPlugin : public AnalysisPlugin
 {
-Q_OBJECT
+    Q_OBJECT
 
 public:
 
