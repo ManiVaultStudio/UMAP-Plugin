@@ -54,7 +54,7 @@ private:
 
 public slots:
     void compute();
-    void stop() { _shouldStop = true; };
+    void stop();
 
 signals:
     void embeddingUpdate(const std::vector<scalar_t> embedding, int epoch);

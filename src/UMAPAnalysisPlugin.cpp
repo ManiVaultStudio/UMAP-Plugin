@@ -247,9 +247,14 @@ void UMAPWorker::resetThread()
     changeThread(QCoreApplication::instance()->thread());
 }
 
+void UMAPWorker::stop()
+{
+    qDebug() << "UMAP: user requested manual stop";
+    _shouldStop = true;
+}
+
 void UMAPWorker::compute()
 {
-
     auto cleanup = [this]() -> void {
         _parentTask->setFinished();
         emit finished();
