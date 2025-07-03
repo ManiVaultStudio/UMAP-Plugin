@@ -22,7 +22,6 @@
 #include <QPointer>
 
 #include <cstdint>
-#include <memory>
 
 using namespace mv::plugin;
 using namespace mv;
