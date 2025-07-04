@@ -58,7 +58,7 @@ KnnSettingsAction::KnnSettingsAction(QObject* parent) :
     _mAction.setDefaultWidgetFlags(IntegralAction::SpinBox);
     _efAction.setDefaultWidgetFlags(IntegralAction::SpinBox);
 
-    _knnAlgorithm.initialize({ "Annoy", "HNSW" }, "Annoy");
+    _knnAlgorithm.initialize({ "Annoy", "HNSW" }, "HNSW");
     _knnMetric.initialize({ "Euclidean", "Cosine", "Inner", "Correlation"}, "Euclidean");
     _kAction.initialize(1, 150, 20);
     _numTreesAction.initialize(1, 10000, 8);
