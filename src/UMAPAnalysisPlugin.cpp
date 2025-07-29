@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <tuple>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -254,6 +255,30 @@ void UMAPWorker::stop()
     _shouldStop = true;
 }
 
+// modular helper to extract data from core
+static std::tuple< std::vector<scalar_t>, std::vector<unsigned int>, size_t, size_t> extractEnabledDimensions(Dataset<Points>& dataset) {
+    // Create list of data from the enabled dimensions
+    std::vector<scalar_t> data;
+    std::vector<unsigned int> indices;
+
+    // Extract the enabled dimensions from the data
+    const std::vector<bool> enabledDimensions = dataset->getDimensionsPickerAction().getEnabledDimensions();
+    const auto numEnabledDimensions = static_cast<size_t>(count_if(enabledDimensions.begin(), enabledDimensions.end(), [](bool b) { return b; }));
+
+    const size_t numPoints = dataset->isFull() ? dataset->getNumPoints() : dataset->indices.size();
+    data.resize(numPoints * numEnabledDimensions);
+
+    for (int i = 0; i < dataset->getNumDimensions(); i++) {
+        if (enabledDimensions[i]) {
+            indices.push_back(i);
+        }
+    }
+
+    dataset->populateDataForDimensions<std::vector<scalar_t>, std::vector<unsigned int>>(data, indices);
+
+    return { data, indices, numEnabledDimensions, numPoints };
+}
+
 void UMAPWorker::compute()
 {
     auto cleanup = [this]() -> void {
@@ -263,30 +288,14 @@ void UMAPWorker::compute()
         };
 
     _shouldStop = false;
+
     _parentTask->setRunning();
     _parentTask->setProgressDescription("Computing knn");
+
     QCoreApplication::processEvents();
 
-    // Get the number of epochs from the settings
-    const auto numberOfEpochs = _settingsAction->getNumberOfEpochsAction().getValue();
-
-    // Create list of data from the enabled dimensions
-    std::vector<scalar_t> data;
-    std::vector<unsigned int> indices;
-
-    // Extract the enabled dimensions from the data
-    std::vector<bool> enabledDimensions = _inputDataset->getDimensionsPickerAction().getEnabledDimensions();
-
-    const auto numEnabledDimensions = count_if(enabledDimensions.begin(), enabledDimensions.end(), [](bool b) { return b; });
-
-    size_t numPoints = _inputDataset->isFull() ? _inputDataset->getNumPoints() : _inputDataset->indices.size();
-    data.resize(numPoints * numEnabledDimensions);
-
-    for (int i = 0; i < _inputDataset->getNumDimensions(); i++)
-        if (enabledDimensions[i])
-            indices.push_back(i);
-
-    _inputDataset->populateDataForDimensions<std::vector<scalar_t>, std::vector<unsigned int>>(data, indices);
+    // get data
+    auto [data, indices, numEnabledDimensions, numPoints] = extractEnabledDimensions(_inputDataset);
 
     // determine threading
     const bool parallel_knn = _knnSettingsAction->getMultithreadAction().isChecked();
@@ -393,6 +402,9 @@ void UMAPWorker::compute()
     const auto advancedSettings = _advSettingsAction->getAdvParameters();
 
     umappp::Options opt;
+
+    // get the number of epochs from the settings
+    const auto numberOfEpochs = _settingsAction->getNumberOfEpochsAction().getValue();
 
     // general settings
     opt.num_neighbors = numNeighbors;
