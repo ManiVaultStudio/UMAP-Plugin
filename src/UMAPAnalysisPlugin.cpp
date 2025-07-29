@@ -445,7 +445,7 @@ void UMAPWorker::compute()
 
     auto status = umappp::initialize<integer_t, scalar_t>(nearestNeighbors, _outDimensions, _embedding.data(), opt);
 
-    const auto updateEmbedding = [this, numPoints](int ep) -> void {
+    const auto updateEmbedding = [this](int ep) -> void {
         _outEmbedding.assign(_embedding.begin(), _embedding.end());
         emit embeddingUpdate(_outEmbedding, ep);
         };
