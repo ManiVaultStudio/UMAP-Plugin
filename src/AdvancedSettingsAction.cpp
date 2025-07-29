@@ -57,7 +57,7 @@ AdvancedSettingsAction::AdvancedSettingsAction(QObject* parent) :
     _repulsion_strength.initialize(0, 10, _advParameters.repulsion_strength, 2);
     _learning_rate.initialize(0, 10, _advParameters.learning_rate, 2);
     _negative_sample_rate.initialize(0, 10, _advParameters.negative_sample_rate, 2);
-    _seed.initialize(1, 2000000000, _advParameters.seed);
+    _seed.initialize(1, 2000000000, static_cast<std::int32_t>(_advParameters.seed));
 
     _multithreadActions.setToolTip("Use more memory to increase computation speed\nThis option is only useful if you have many cores\n4 is not a lot.");
 
