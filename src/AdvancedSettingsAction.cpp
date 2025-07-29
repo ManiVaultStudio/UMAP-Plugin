@@ -19,6 +19,18 @@ AdvancedSettingsAction::AdvancedSettingsAction(QObject* parent) :
     setText("Advanced Settings");
     setSerializationName("Advanced Settings");
 
+    _local_connectivity.setToolTip("The number of nearest neighbors\nthat are assumed to be always connected");
+    _bandwidth.setToolTip("Effective bandwidth of the kernel when converting\nthe distance to a neighbor into a fuzzy set membership confidence");
+    _mix_ratio.setToolTip("Larger values (up to 1) favor connectivity and more global structure");
+    _spread.setToolTip("Scale of the coordinates of the final low-dimensional embedding");
+    _min_dist.setToolTip("Minimum distance between observations in the final low-dimensional embedding");
+    _a.setToolTip("a parameter for the fuzzy set membership strength calculations");
+    _b.setToolTip("b parameter for the fuzzy set membership strength calculations");
+    _repulsion_strength.setToolTip("Larger values increase repulsion and favor local structure");
+    _learning_rate.setToolTip("Initial learning rate used in the gradient descent");
+    _negative_sample_rate.setToolTip("Current epoch index");
+    _seed.setToolTip("Seed to use for the Mersenne Twister when sampling negative observations");
+
     addAction(&_local_connectivity);
     addAction(&_bandwidth);
     addAction(&_mix_ratio);
@@ -39,13 +51,13 @@ AdvancedSettingsAction::AdvancedSettingsAction(QObject* parent) :
     _bandwidth.initialize(0, 10, _advParameters.bandwidth, 2);
     _mix_ratio.initialize(0, 1, _advParameters.mix_ratio, 2);
     _spread.initialize(0.01, 10, _advParameters.spread, 2);
-    _min_dist.initialize(0.001, 10, _advParameters.min_dist, 3);
-    _a.initialize(0, 10, _advParameters.a, 2);
-    _b.initialize(0, 1, _advParameters.b, 2);
+    _min_dist.initialize(0.001, 10, _advParameters.min_dist, 4);
+    _a.initialize(0, 10, _advParameters.a, 4);
+    _b.initialize(0, 5, _advParameters.b, 4);
     _repulsion_strength.initialize(0, 10, _advParameters.repulsion_strength, 2);
     _learning_rate.initialize(0, 10, _advParameters.learning_rate, 2);
     _negative_sample_rate.initialize(0, 10, _advParameters.negative_sample_rate, 2);
-    _seed.initialize(1, 2000000000, _advParameters.seed);
+    _seed.initialize(1, 2000000000, static_cast<std::int32_t>(_advParameters.seed));
 
     _multithreadActions.setToolTip("Use more memory to increase computation speed\nThis option is only useful if you have many cores\n4 is not a lot.");
 

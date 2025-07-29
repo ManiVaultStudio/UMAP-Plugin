@@ -14,7 +14,7 @@ SettingsAction::SettingsAction(QObject* parent) :
     _currentEpochAction.setEnabled(false);
 
     _currentEpochAction.setToolTip("Current epoch index");
-    _numberOfEpochsAction.setToolTip("Number of epochs to compute");
+    _numberOfEpochsAction.setToolTip("Number of epochs to compute the gradient descent, i.e., optimization iterations");
     _startStopActions.setToolTip("Computation control");
     _initializeActions.setToolTip("Use spectral decomposition of the graph Laplacian or random initialization");
     _numberEmbDimsAction.setToolTip("Number of embedding output dimensions");
