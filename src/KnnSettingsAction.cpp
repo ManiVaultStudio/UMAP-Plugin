@@ -52,6 +52,10 @@ KnnSettingsAction::KnnSettingsAction(QObject* parent) :
 #endif
 
     _multithreadActions.setToolTip("Use more memory to increase computation speed");
+    _numTreesAction.setToolTip("Annoy: provided during build time and affects the build time and the index size.\nA larger value will give more accurate results, but larger indexes.");
+    _numChecksAction.setToolTip("Annoy: provided in runtime and affects the search performance.\nA larger value will give more accurate results, but will take longer time to return.");
+    _mAction.setToolTip("HNSW: number of bi-directional links created for every new element during construction. Reasonable range for M is 2-100.");
+    _efAction.setToolTip("HNSW: Sets both search and construction ef parameter.");
 
     _numTreesAction.setDefaultWidgetFlags(IntegralAction::SpinBox);
     _numChecksAction.setDefaultWidgetFlags(IntegralAction::SpinBox);

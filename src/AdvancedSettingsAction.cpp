@@ -19,6 +19,18 @@ AdvancedSettingsAction::AdvancedSettingsAction(QObject* parent) :
     setText("Advanced Settings");
     setSerializationName("Advanced Settings");
 
+    _local_connectivity.setToolTip("The number of nearest neighbors\nthat are assumed to be always connected");
+    _bandwidth.setToolTip("Effective bandwidth of the kernel when converting\nthe distance to a neighbor into a fuzzy set membership confidence");
+    _mix_ratio.setToolTip("Larger values (up to 1) favor connectivity and more global structure");
+    _spread.setToolTip("Scale of the coordinates of the final low-dimensional embedding");
+    _min_dist.setToolTip("Minimum distance between observations in the final low-dimensional embedding");
+    _a.setToolTip("a parameter for the fuzzy set membership strength calculations");
+    _b.setToolTip("b parameter for the fuzzy set membership strength calculations");
+    _repulsion_strength.setToolTip("Larger values increase repulsion and favor local structure");
+    _learning_rate.setToolTip("Initial learning rate used in the gradient descent");
+    _negative_sample_rate.setToolTip("Current epoch index");
+    _seed.setToolTip("Seed to use for the Mersenne Twister when sampling negative observations");
+
     addAction(&_local_connectivity);
     addAction(&_bandwidth);
     addAction(&_mix_ratio);
