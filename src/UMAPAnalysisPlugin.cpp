@@ -21,6 +21,7 @@
 
 #pragma warning(disable:4267) // umapp internal: conversion warning
 #include <umappp/initialize.hpp>
+#include <umappp/find_ab.hpp>
 #include <umappp/Options.hpp>
 #pragma warning(default:4267)
 
@@ -374,7 +375,7 @@ void UMAPWorker::compute()
             }
         }
 
-        qDebug() << "UMAP: querying knn in searcher";
+        qDebug() << "UMAP: querying knn in searcher: " << numNeighbors << " neighbors";
         nearestNeighbors = knncolle::find_nearest_neighbors<integer_t, scalar_t, scalar_t>(*searcher, numNeighbors, num_threads_knn);
         qDebug() << "UMAP: finished knn";
 
@@ -420,6 +421,15 @@ void UMAPWorker::compute()
         opt.parallel_optimization   = true;
         opt.num_threads             = num_threads_layout;
     }
+
+    // move this here from umappp::initialize so that we can log the resulting a and b settings
+    if (opt.a <= 0 || opt.b <= 0) {
+        auto found = umappp::internal::find_ab(opt.spread, opt.min_dist);
+        opt.a = found.first;
+        opt.b = found.second;
+    }
+
+    qDebug() << "UMAP: layout settings: a: " << opt.a << ", b: " << opt.b << ", min_dist: " << opt.min_dist << ", spread: " << opt.spread;
 
     auto status = umappp::initialize<integer_t, scalar_t>(nearestNeighbors, _outDimensions, _embedding.data(), opt);
 
