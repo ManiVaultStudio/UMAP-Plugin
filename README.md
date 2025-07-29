@@ -47,6 +47,8 @@ knn settings:
   - Inner: `1.0 - sum(Ai*Bi) / sqrt(sum(Ai*Ai) * sum(Bi*Bi))`
   - Correlation: `1.0 - corr(A, B)`. Based on [Pearson's correlation coefficient](https://en.wikipedia.org/wiki/Correlation) between data vectors. See the correlation distance in [umap-learn](https://github.com/lmcinnes/umap/blob/15e55bb6a1ca23b8d6040d9d6184a7ae98325ace/umap/distances.py#L598). Only available with HNSW. (Technically not a metric.)
 
+Please refer to the [original UMAP documentation](https://umap-learn.readthedocs.io/en/latest/how_umap_works.html) for more information.
+
 ## References
 - [libscran/umappp](https://github.com/libscran/umappp): Aaron Lun, BSD 2-Clause License
 - UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction, McInnes L, Healy J, Melville J (2020), [arxiv: 1802.03426](https://arxiv.org/abs/1802.03426)
