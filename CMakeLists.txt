@@ -69,27 +69,26 @@ if(NOT libscran_umappp_FOUND AND NOT TARGET libscran::umappp)
         set(EIGEN_BUILD_TESTING  OFF CACHE BOOL "Enable creation of Eigen tests." FORCE)
         set(EIGEN_BUILD_DOC OFF CACHE BOOL "Enable creation of Eigen documentation" FORCE)
         set(EIGEN_BUILD_DEMOS OFF CACHE BOOL "Toggles the building of the Eigen demos" FORCE)
-        fetch_content_url(eigen "https://gitlab.com/libeigen/eigen/-/archive/3866cbfbe8622f41b4f9fa17227aaa7a8de13890/eigen-3866cbfbe8622f41b4f9fa17227aaa7a8de13890.tar.gz") # master as of 26/03/25
+        fetch_content_url(eigen "https://gitlab.com/libeigen/eigen/-/archive/5.0.0.tar.gz")
     endif()
 
     # the patches enable use to use the local dependency versions
-    fetch_cpm_repo(aarand "https://github.com/LTLA/aarand.git" 4e41649bd3b7f86a59d6cef2ddf02fa615111429) # master as of 04-12-24, v1.0.2+
-    fetch_cpm_repo(subpar "https://github.com/LTLA/subpar.git" 5fe38b9507deb12b3c27b44c510d930d797e55fe) # master as of 23-05-25, v0.4.0
-    fetch_cpm_repo_patch(knncolle "https://github.com/knncolle/knncolle.git" 72d2b1dbd40160b475beda8e1f2584206a234613 "knncolle.patch") # master as of 23-05-25, v3.0.1+, depends on subpar
-    fetch_cpm_repo_patch(irlba "https://github.com/LTLA/CppIrlba.git" 7533aa39deaa4ce50b46dbe47d08a8cc661922f2 "irlba.patch") # master as of 23-05-25, v2.0.2+, depends on eigen, aarand and subpar
-    fetch_cpm_repo_patch(umappp "https://github.com/libscran/umappp.git" 0b0047bfdb6835d9b83943165d29ce581ca4dd34 "umappp.patch") # master as of 23-05-25, v3.0.0, depends on aarand, subpar, CppIrlba and knnolle
+    fetch_content_url(aarand "https://github.com/LTLA/aarand/archive/refs/tags/v1.1.0.zip")
+    fetch_content_url(subpar "https://github.com/LTLA/subpar/archive/refs/tags/v0.4.1.zip")
+    fetch_content_url(sanisizer "https://github.com/LTLA/sanisizer/archive/refs/tags/v0.1.3.zip")
+    fetch_cpm_repo_patch(knncolle "https://github.com/knncolle/knncolle.git" v3.0.1 "knncolle.patch") # depends on subpar
+    fetch_cpm_repo_patch(irlba "https://github.com/LTLA/CppIrlba.git" v2.0.2 "irlba.patch") # depends on eigen, aarand and subpar
+    fetch_cpm_repo_patch(umappp "https://github.com/libscran/umappp.git" v3.1.0 "umappp.patch") # depends on aarand, subpar, CppIrlba and knnolle
 endif()
 
 find_package(knncolle_knncolle_hnsw CONFIG QUIET)
-
 if(NOT knncolle_knncolle_hnsw_FOUND AND NOT TARGET knncolle::knncolle_hnsw)
-    fetch_cpm_repo_patch(knncolle_hnsw "https://github.com/knncolle/knncolle_hnsw.git" c945bb875e4b38bfcdd4346caa3c735f5ade5a08 "knncolle_hnsw.patch")  # master as of 23-05-25, v0.2.0+
+    fetch_cpm_repo_patch(knncolle_hnsw "https://github.com/knncolle/knncolle_hnsw.git" v0.2.1 "knncolle_hnsw.patch")
 endif()
 
 find_package(knncolle_knncolle_annoy CONFIG QUIET)
-
 if(NOT knncolle_knncolle_annoy_FOUND AND NOT TARGET knncolle::knncolle_annoy)
-    fetch_cpm_repo_patch(knncolle_annoy "https://github.com/knncolle/knncolle_annoy.git" da12815c927dbe63488a54936180ffb1ea88b049 "knncolle_annoy.patch") # master as of 23-05-25, v0.2.0+
+    fetch_cpm_repo_patch(knncolle_annoy "https://github.com/knncolle/knncolle_annoy.git" v0.2.0 "knncolle_annoy.patch")
 endif()
 
 # -----------------------------------------------------------------------------
