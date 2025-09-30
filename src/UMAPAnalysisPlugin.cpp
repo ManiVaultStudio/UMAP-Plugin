@@ -143,7 +143,7 @@ void UMAPAnalysisPlugin::init()
     _settingsAction.getCurrentEpochAction().setString(QString::number(0));
 
     // Compute suggested number of epoch
-    _settingsAction.getNumberOfEpochsAction().setValue(umappp::internal::choose_num_epochs(-1, _numPoints));
+    _settingsAction.getNumberOfEpochsAction().setValue(umappp::internal::choose_num_epochs(std::nullopt, _numPoints));
 
     // Create UMAP worker, which will be executed in another thread
     // Start the analysis when the user clicks the start analysis push button
