@@ -475,7 +475,7 @@ void UMAPWorker::compute()
         if (_shouldStop)
             break;
 
-        status.run(epoch);
+        status.run(_embedding.data(), epoch);
 
         // publish the embedding only every 10 iterations
         if (epoch % 10 == 0)
