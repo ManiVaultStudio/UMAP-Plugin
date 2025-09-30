@@ -412,9 +412,18 @@ void UMAPWorker::compute()
 
     // default is spectral
     if (_settingsAction->getInitializeAction().getCurrentText() == "Random")
-        opt.initialize = umappp::InitializeMethod::RANDOM;
+        opt.initialize_method = umappp::InitializeMethod::RANDOM;
     else
-        opt.initialize = umappp::InitializeMethod::SPECTRAL;
+        opt.initialize_method = umappp::InitializeMethod::SPECTRAL;
+
+    // option that are not exposed
+    opt.initialize_random_on_spectral_fail = true;
+    opt.initialize_spectral_irlba_options = {};
+    opt.initialize_spectral_scale = 10;
+    opt.initialize_spectral_jitter = false;
+    opt.initialize_spectral_jitter_sd = 0.0001;
+    opt.initialize_random_scale = 10;
+    opt.optimize_seed = 1234567890;
 
      // advanced settings
     opt.local_connectivity   = advancedSettings.local_connectivity;
@@ -427,7 +436,7 @@ void UMAPWorker::compute()
     opt.repulsion_strength   = advancedSettings.repulsion_strength;
     opt.learning_rate        = advancedSettings.learning_rate;
     opt.negative_sample_rate = advancedSettings.negative_sample_rate;
-    opt.seed                 = advancedSettings.seed;
+    opt.initialize_seed      = advancedSettings.seed;
 
     if (parallel_layout) {
         opt.parallel_optimization   = true;
