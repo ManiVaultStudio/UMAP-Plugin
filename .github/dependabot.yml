@@ -1,0 +1,8 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"  # Dependabot scans the whole repo for workflow files
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-type: "all"
