@@ -1,21 +1,26 @@
-diff --git a/CMakeLists.txt b/CMakeLists.txt
-index f7beb33..046f21d 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -19,50 +19,5 @@ target_compile_features(umappp INTERFACE cxx_std_17)
+@@ -14,56 +14,7 @@ add_library(libscran::umappp ALIAS umappp)
  
- # Dependencies
- option(UMAPPP_FETCH_EXTERN "Automatically fetch umappp's external dependencies." ON)
+ target_include_directories(umappp INTERFACE
+     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/libscran>)
++    )
+ target_compile_features(umappp INTERFACE cxx_std_17)
+ 
+-# Dependencies
+-option(UMAPPP_FETCH_EXTERN "Automatically fetch umappp's external dependencies." ON)
 -if(UMAPPP_FETCH_EXTERN)
 -    add_subdirectory(extern)
 -else()
--    find_package(ltla_aarand CONFIG REQUIRED)
--    find_package(ltla_irlba CONFIG REQUIRED)
+-    find_package(ltla_aarand 1.1.0 CONFIG REQUIRED)
+-    find_package(ltla_irlba 3.0.0 CONFIG REQUIRED)
+-    find_package(Eigen3 5.0.0 CONFIG REQUIRED)
 -    find_package(ltla_subpar 0.4.0 CONFIG REQUIRED)
 -    find_package(ltla_sanisizer 0.1.3 CONFIG REQUIRED)
 -    find_package(knncolle_knncolle 3.0.0 CONFIG REQUIRED)
 -endif()
- 
+-
  target_link_libraries(umappp INTERFACE ltla::aarand ltla::irlba ltla::subpar ltla::sanisizer knncolle::knncolle)
 -
 -# Tests
@@ -53,3 +58,25 @@ index f7beb33..046f21d 100644
 -
 -install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libscran_umapppConfig.cmake"
 -    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libscran_umappp)
+diff --git a/cmake/Config.cmake.in b/cmake/Config.cmake.in
+index d098cf5..baba947 100644
+--- a/cmake/Config.cmake.in
++++ b/cmake/Config.cmake.in
+@@ -1,11 +1,11 @@
+ @PACKAGE_INIT@
+ 
+ include(CMakeFindDependencyMacro)
+-find_dependency(ltla_aarand 1.1.0 CONFIG REQUIRED)
+-find_dependency(ltla_sanisizer 0.1.3 CONFIG REQUIRED)
+-find_dependency(ltla_subpar 0.4.0 CONFIG REQUIRED)
+-find_dependency(ltla_irlba 3.0.0 CONFIG REQUIRED)
+-find_dependency(Eigen3 5.0.0 CONFIG REQUIRED)
+-find_dependency(knncolle_knncolle 3.0.0 CONFIG REQUIRED)
++find_dependency(ltla_aarand CONFIG REQUIRED)
++find_dependency(ltla_sanisizer CONFIG REQUIRED)
++find_dependency(ltla_subpar CONFIG REQUIRED)
++find_dependency(ltla_irlba CONFIG REQUIRED)
++find_dependency(Eigen3 CONFIG REQUIRED)
++find_dependency(knncolle_knncolle CONFIG REQUIRED)
+ 
+ include("${CMAKE_CURRENT_LIST_DIR}/libscran_umapppTargets.cmake")

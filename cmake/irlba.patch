@@ -1,20 +1,25 @@
-diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 2d2d171..b972ff1 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -19,49 +19,5 @@ target_compile_features(irlba INTERFACE cxx_std_17)
+@@ -14,55 +14,7 @@ add_library(ltla::irlba ALIAS irlba)
  
- # Dependencies
- option(IRLBA_FETCH_EXTERN "Automatically fetch CppIrlba's dependencies." ON)
+ target_include_directories(irlba INTERFACE
+     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ltla>)
++    )
+ target_compile_features(irlba INTERFACE cxx_std_17)
+ 
+-# Dependencies
+-option(IRLBA_FETCH_EXTERN "Automatically fetch CppIrlba's dependencies." ON)
 -if(IRLBA_FETCH_EXTERN)
 -    add_subdirectory(extern)
 -else()
--    find_package(Eigen3 3.4.0 CONFIG REQUIRED)
+-    find_package(Eigen3 5.0.0 CONFIG REQUIRED)
 -    find_package(ltla_aarand 1.0.0 CONFIG REQUIRED)
 -    find_package(ltla_subpar 0.3.1 CONFIG REQUIRED)
+-    find_package(ltla_sanisizer 0.1.0 CONFIG REQUIRED)
 -endif()
- 
- target_link_libraries(irlba INTERFACE Eigen3::Eigen ltla::aarand ltla::subpar)
+-
+ target_link_libraries(irlba INTERFACE Eigen3::Eigen ltla::aarand ltla::subpar ltla::sanisizer)
 -
 -# Tests
 -if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
