@@ -1,14 +1,13 @@
-#include <catch2/catch_test_macros.hpp>	// for info on testing see https://github.com/catchorg/Catch2/blob/devel/docs/tutorial.md#test-cases-and-sections
-#include <catch2/catch_timer.hpp>
-
 #include <knncolle/Builder.hpp>
-#include <knncolle/find_nearest_neighbors.hpp>
 #include <knncolle_hnsw/knncolle_hnsw.hpp>
 #include <knncolle_hnsw/distances.hpp>
+
+#include <catch2/catch_timer.hpp>
 
 #include "util/hnsw_space_corr.h"
 #include "util/knncolle_matrix_parallel.h"
 #include "util/knncolle_hnsw_parallel.h"
+#include "util/knncolle_find_nearest_neighbors.h"
 
 #include "test_utils.h"
 
@@ -19,6 +18,13 @@
 #include <cmath>
 
 using namespace testing;
+
+using integer_type = int32_t;
+using scalar_type = float;
+using KnnDataMatrix = knncolle::ParallelMatrix< /* observation index */ integer_type, /* data type */ scalar_type>;
+using KnnHnsw = knncolle_hnsw::HnswBuilder<integer_type, scalar_type, scalar_type, KnnDataMatrix>;
+using KnnHnswPar = knncolle_hnsw::HnswBuilderParallel<integer_type, scalar_type, scalar_type, KnnDataMatrix>;
+using KnnList = knncolle::NeighborList<integer_type, scalar_type>;
 
 static void testInstructionSets(const float ref, const std::vector<float>& vec1, const std::vector<float>& vec2, const size_t dim) {
 #if defined(USE_SSE)
@@ -228,26 +234,19 @@ TEST_CASE("Correlation distance instruction sets", "[DIST][SSE][AVX]") {
 		}
 	}
 
-
 }
 
 TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 	info("TEST: Parallel HNSW");
-	using integer_t  = int32_t;
-	using scalar_t   = float;
-	using DataMatrix = knncolle::ParallelMatrix< /* observation index */ integer_t, /* data type */ scalar_t>;
-	using KnnHnsw = knncolle_hnsw::HnswBuilder<integer_t, scalar_t, scalar_t, DataMatrix>;
-	using KnnHnswPar = knncolle_hnsw::HnswBuilderParallel<integer_t, scalar_t, scalar_t, DataMatrix>;
-	using KnnList = knncolle::NeighborList<integer_t, scalar_t>;
 
-	DataGenerator<scalar_t> gen;
+	DataGenerator<scalar_type> gen;
 
 	const size_t numPoints = 10'000;
 	const size_t numDim = 16;
 
-	const std::vector<scalar_t> data = gen.randomMatrix(numDim, numPoints);
+	const std::vector<scalar_type> data = gen.randomMatrix(numDim, numPoints);
 
-	const auto mat = DataMatrix(numDim, numPoints, data.data());
+	const auto mat = KnnDataMatrix(numDim, numPoints, data.data());
 
 	knncolle_hnsw::HnswOptions opt;
 	opt.num_links = 16;
@@ -270,24 +269,24 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 		{
 			timer.start();
 			info("Search sequential");
-			auto searcherSeq = KnnHnsw(knncolle_hnsw::makeEuclideanDistanceConfig<scalar_t>(), opt).build_unique(mat);
-			nn_seq = knncolle::find_nearest_neighbors<integer_t, scalar_t, scalar_t>(*searcherSeq, numNeighbors, 1);
+			auto searcherSeq = KnnHnsw(knncolle_hnsw::configure_euclidean_distance<scalar_type>(), opt).build_unique(mat);
+			nn_seq = knncolle::find_nearest_neighbors_custom<integer_type, scalar_type, scalar_type>(*searcherSeq, numNeighbors, 1);
 			printDuration(timer.getElapsedMicroseconds());
 		}
 
 		{
 			timer.start();
 			info("Search parallel: query");
-			auto searcherParQue = KnnHnsw(knncolle_hnsw::makeEuclideanDistanceConfig<scalar_t>(), opt).build_unique(mat);
-			nn_parQue = knncolle::find_nearest_neighbors<integer_t, scalar_t, scalar_t>(*searcherParQue, numNeighbors, numThreads);
+			auto searcherParQue = KnnHnsw(knncolle_hnsw::configure_euclidean_distance<scalar_type>(), opt).build_unique(mat);
+			nn_parQue = knncolle::find_nearest_neighbors_custom<integer_type, scalar_type, scalar_type>(*searcherParQue, numNeighbors, numThreads);
 			printDuration(timer.getElapsedMicroseconds());
 		}
 
 		{
 			timer.start();
 			info("Search parallel: addition and query");
-			auto searcherParAll = KnnHnswPar(knncolle_hnsw::makeEuclideanDistanceConfig<scalar_t>(), opt).build_unique(mat);
-			nn_parAll = knncolle::find_nearest_neighbors<integer_t, scalar_t, scalar_t>(*searcherParAll, numNeighbors, numThreads);
+			auto searcherParAll = KnnHnswPar(knncolle_hnsw::configure_euclidean_distance<scalar_type>(), opt).build_unique(mat);
+			nn_parAll = knncolle::find_nearest_neighbors_custom<integer_type, scalar_type, scalar_type>(*searcherParAll, numNeighbors, numThreads);
 			printDuration(timer.getElapsedMicroseconds());
 		}
 
@@ -345,16 +344,16 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 		{
 			timer.start();
 			info("Search sequential");
-			auto searcherSeq = KnnHnsw(knncolle_hnsw::makeEuclideanDistanceConfig<scalar_t>(), opt).build_unique(mat);
-			nn_seq = knncolle::find_nearest_neighbors<integer_t, scalar_t, scalar_t>(*searcherSeq, numNeighbors, 1);
+			auto searcherSeq = KnnHnsw(knncolle_hnsw::configure_euclidean_distance<scalar_type>(), opt).build_unique(mat);
+			nn_seq = knncolle::find_nearest_neighbors_custom<integer_type, scalar_type, scalar_type>(*searcherSeq, numNeighbors, 1);
 			printDuration(timer.getElapsedMicroseconds());
 		}
 
 		{
 			timer.start();
 			info("Search parallel: addition and query");
-			auto searcherParAll = KnnHnswPar(knncolle_hnsw::makeEuclideanDistanceConfig<scalar_t>(), opt).build_unique(mat);
-			nn_parAll = knncolle::find_nearest_neighbors<integer_t, scalar_t, scalar_t>(*searcherParAll, numNeighbors, numThreads);
+			auto searcherParAll = KnnHnswPar(knncolle_hnsw::configure_euclidean_distance<scalar_type>(), opt).build_unique(mat);
+			nn_parAll = knncolle::find_nearest_neighbors_custom<integer_type, scalar_type, scalar_type>(*searcherParAll, numNeighbors, numThreads);
 			printDuration(timer.getElapsedMicroseconds());
 		}
 
