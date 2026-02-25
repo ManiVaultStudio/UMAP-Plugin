@@ -15,7 +15,7 @@ if(NOT libscran_umappp_FOUND AND NOT TARGET libscran::umappp)
     # the patches enable use to use the local dependency versions
     fetch_content_url(aarand "https://github.com/LTLA/aarand/archive/refs/tags/v1.1.0.zip")
     fetch_content_url(subpar "https://github.com/LTLA/subpar/archive/refs/tags/v0.4.1.zip")
-    fetch_content_url(sanisizer "https://github.com/LTLA/sanisizer/archive/refs/tags/v0.1.6.zip")
+    fetch_content_url(sanisizer "https://github.com/LTLA/sanisizer/archive/refs/tags/v0.2.1.zip")
     fetch_cpm_repo_patch(knncolle "https://github.com/knncolle/knncolle.git" v3.1.0 "knncolle.patch") # depends on subpar
     fetch_cpm_repo_patch(irlba "https://github.com/LTLA/CppIrlba.git" v3.0.1 "irlba.patch") # depends on eigen, aarand and subpar
     fetch_cpm_repo_patch(umappp "https://github.com/libscran/umappp.git" v3.2.0 "umappp.patch") # depends on aarand, subpar, CppIrlba and knnolle

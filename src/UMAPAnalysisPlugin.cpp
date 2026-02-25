@@ -11,15 +11,15 @@
 
 #include <knncolle/Builder.hpp>
 #include <knncolle/Prebuilt.hpp>
-#include <knncolle/find_nearest_neighbors.hpp>
 #include <knncolle_annoy/knncolle_annoy.hpp>
 #include <knncolle_hnsw/distances.hpp>
 
 #include "util/hnsw_space_corr.h"
 #include "util/knncolle_matrix_parallel.h"
 #include "util/knncolle_hnsw_parallel.h"
+#include "util/knncolle_find_nearest_neighbors.h"
 
-#pragma warning(disable:4267) // umapp internal: conversion warning
+#pragma warning(disable:4267) // umappp internal: conversion warning
 #include <umappp/initialize.hpp>
 #include <umappp/find_ab.hpp>
 #include <umappp/Options.hpp>
@@ -41,6 +41,11 @@ Q_PLUGIN_METADATA(IID "studio.manivault.UMAPAnalysisPlugin")
 using namespace mv;
 using namespace mv::plugin;
 
+/// /////////// ///
+/// Definitions ///
+/// //////////  ///
+
+
 using DataMatrix        = knncolle::ParallelMatrix< /* observation index */ integer_t, /* data type */ scalar_t>;
 using KnnBase           = knncolle::Prebuilt< /* observation index */ integer_t, /* data type */ scalar_t, /* distance type */ scalar_t>;
 
@@ -50,17 +55,54 @@ using KnnAnnoyDot       = knncolle_annoy::AnnoyBuilder<integer_t, scalar_t, scal
 
 using KnnHnsw           = knncolle_hnsw::HnswBuilderParallel<integer_t, scalar_t, scalar_t, DataMatrix>;
 
-static void normalizeData(std::vector<scalar_t>& data) {
-    float norm = 0.0f;
-    for (const auto& val : data)
-        norm += val * val;
+/// ////////// ///
+///   Helper   ///
+/// ////////// ///
 
-    norm = 1.0f / (std::sqrt(norm) + 1e-30f);
+namespace
+{
+    void normalizeData(std::vector<scalar_t>& data) {
+        float norm = 0.0f;
+        for (const auto& val : data)
+            norm += val * val;
+
+        norm = 1.0f / (std::sqrt(norm) + 1e-30f);
 
 #pragma omp parallel
-    for (std::int64_t i = 0; i < data.size(); i++)
-        data[i] *= norm;
+        for (std::int64_t i = 0; i < data.size(); i++)
+            data[i] *= norm;
+    }
+
+    // modular helper to extract data from core
+    std::tuple< std::vector<scalar_t>, std::vector<unsigned int>, size_t, size_t> extractEnabledDimensions(Dataset<Points>& dataset) {
+        // Create list of data from the enabled dimensions
+        std::vector<scalar_t> data;
+        std::vector<unsigned int> indices;
+
+        // Extract the enabled dimensions from the data
+        const std::vector<bool> enabledDimensions = dataset->getDimensionsPickerAction().getEnabledDimensions();
+        const auto numEnabledDimensions = static_cast<size_t>(std::ranges::count_if(enabledDimensions, [](const bool b) { return b; }));
+
+        const size_t numPoints = dataset->isFull() ? dataset->getNumPoints() : dataset->indices.size();
+        data.resize(numPoints * numEnabledDimensions);
+
+        for (int i = 0; i < dataset->getNumDimensions(); i++) {
+            if (enabledDimensions[i]) {
+                indices.push_back(i);
+            }
+        }
+
+        dataset->populateDataForDimensions<std::vector<scalar_t>, std::vector<unsigned int>>(data, indices);
+
+        return { data, indices, numEnabledDimensions, numPoints };
+    }
+
 }
+
+
+/// ////////// ///
+///   Plugin   ///
+/// ////////// ///
 
 UMAPAnalysisPlugin::UMAPAnalysisPlugin(const PluginFactory* factory) :
     AnalysisPlugin(factory),
@@ -143,7 +185,7 @@ void UMAPAnalysisPlugin::init()
     _settingsAction.getCurrentEpochAction().setString(QString::number(0));
 
     // Compute suggested number of epoch
-    _settingsAction.getNumberOfEpochsAction().setValue(umappp::internal::choose_num_epochs(std::nullopt, _numPoints));
+    _settingsAction.getNumberOfEpochsAction().setValue(umappp::choose_num_epochs(std::nullopt, _numPoints));
 
     // Create UMAP worker, which will be executed in another thread
     // Start the analysis when the user clicks the start analysis push button
@@ -255,30 +297,6 @@ void UMAPWorker::stop()
     _shouldStop = true;
 }
 
-// modular helper to extract data from core
-static std::tuple< std::vector<scalar_t>, std::vector<unsigned int>, size_t, size_t> extractEnabledDimensions(Dataset<Points>& dataset) {
-    // Create list of data from the enabled dimensions
-    std::vector<scalar_t> data;
-    std::vector<unsigned int> indices;
-
-    // Extract the enabled dimensions from the data
-    const std::vector<bool> enabledDimensions = dataset->getDimensionsPickerAction().getEnabledDimensions();
-    const auto numEnabledDimensions = static_cast<size_t>(count_if(enabledDimensions.begin(), enabledDimensions.end(), [](bool b) { return b; }));
-
-    const size_t numPoints = dataset->isFull() ? dataset->getNumPoints() : dataset->indices.size();
-    data.resize(numPoints * numEnabledDimensions);
-
-    for (int i = 0; i < dataset->getNumDimensions(); i++) {
-        if (enabledDimensions[i]) {
-            indices.push_back(i);
-        }
-    }
-
-    dataset->populateDataForDimensions<std::vector<scalar_t>, std::vector<unsigned int>>(data, indices);
-
-    return { data, indices, numEnabledDimensions, numPoints };
-}
-
 void UMAPWorker::compute()
 {
     auto cleanup = [this]() -> void {
@@ -355,7 +373,7 @@ void UMAPWorker::compute()
             switch (knnParams.getKnnMetric()) {
             case KnnMetric::COSINE:
                 normalizeData(data);
-                searcher = KnnHnsw(knncolle_hnsw::makeEuclideanDistanceConfig<scalar_t>(), opt).build_unique(mat);
+                searcher = KnnHnsw(knncolle_hnsw::configure_euclidean_distance<scalar_t>(), opt).build_unique(mat);
                 break;
             case KnnMetric::DOT: {
                 auto inner_config = knncolle_hnsw::DistanceConfig<scalar_t>();
@@ -367,7 +385,7 @@ void UMAPWorker::compute()
                 break;
             }
             case KnnMetric::EUCLIDEAN:  
-                searcher = KnnHnsw(knncolle_hnsw::makeEuclideanDistanceConfig<scalar_t>(), opt).build_unique(mat);
+                searcher = KnnHnsw(knncolle_hnsw::configure_euclidean_distance<scalar_t>(), opt).build_unique(mat);
                 break;
             case KnnMetric::CORRELATION: {
                 auto correlation_config = knncolle_hnsw::DistanceConfig<scalar_t>();
@@ -380,12 +398,12 @@ void UMAPWorker::compute()
             }
             default:
                 qDebug() << "UMAP: unknown metric using euclidean";
-                searcher = KnnHnsw(knncolle_hnsw::makeEuclideanDistanceConfig<scalar_t>(), opt).build_unique(mat);
+                searcher = KnnHnsw(knncolle_hnsw::configure_euclidean_distance<scalar_t>(), opt).build_unique(mat);
             }
         }
 
         qDebug() << "UMAP: querying knn in searcher: " << numNeighbors << " neighbors";
-        nearestNeighbors = knncolle::find_nearest_neighbors<integer_t, scalar_t, scalar_t>(*searcher, numNeighbors, num_threads_knn);
+        nearestNeighbors = knncolle::find_nearest_neighbors_custom<integer_t, scalar_t, scalar_t>(*searcher, numNeighbors, num_threads_knn);
         qDebug() << "UMAP: finished knn";
 
     }
@@ -445,7 +463,7 @@ void UMAPWorker::compute()
 
     // move this here from umappp::initialize so that we can log the resulting a and b settings
     if (opt.a <= 0 || opt.b <= 0) {
-        auto found = umappp::internal::find_ab(opt.spread, opt.min_dist);
+        auto found = umappp::find_ab(opt.spread, opt.min_dist);
         opt.a = found.first;
         opt.b = found.second;
     }

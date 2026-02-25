@@ -108,7 +108,7 @@ namespace knncolle_hnsw {
 
         std::priority_queue<std::pair<HnswData_, hnswlib::labeltype> > my_queue;
 
-        static constexpr bool same_internal_data = std::is_same<Data_, HnswData_>::value;
+        static constexpr bool same_internal_data = std::is_same_v<Data_, HnswData_>;
         std::vector<HnswData_> my_buffer;
 
     public:
@@ -125,7 +125,7 @@ namespace knncolle_hnsw {
          */
 
     public:
-        void search(Index_ i, Index_ k, std::vector<Index_>* output_indices, std::vector<Distance_>* output_distances) {
+        void search(Index_ i, Index_ k, std::vector<Index_>* output_indices, std::vector<Distance_>* output_distances) override {
             my_buffer = my_parent.my_index.template getDataByLabel<HnswData_>(i);
             Index_ kp1 = k + 1;
             my_queue = my_parent.my_index.searchKnn(my_buffer.data(), kp1); // +1, as it forgets to discard 'self'.
@@ -178,10 +178,8 @@ namespace knncolle_hnsw {
                 }
             }
 
-            if (output_distances && my_parent.my_normalize) {
-                for (auto& d : *output_distances) {
-                    d = my_parent.my_normalize(d);
-                }
+            if (output_distances) {
+                normalize_distances(*output_distances);
             }
         }
 
@@ -210,15 +208,30 @@ namespace knncolle_hnsw {
                 my_queue.pop();
             }
 
-            if (output_distances && my_parent.my_normalize) {
-                for (auto& d : *output_distances) {
-                    d = my_parent.my_normalize(d);
+            if (output_distances) {
+                normalize_distances(*output_distances);
+            }
+        }
+
+        void normalize_distances(std::vector<Distance_>& output_distances) const {
+            switch (my_parent.my_normalize_method) {
+            case DistanceNormalizeMethod::SQRT:
+                for (auto& d : output_distances) {
+                    d = std::sqrt(d);
                 }
+                break;
+            case DistanceNormalizeMethod::CUSTOM:
+                for (auto& d : output_distances) {
+                    d = my_parent.my_custom_normalize(d);
+                }
+                break;
+            case DistanceNormalizeMethod::NONE:
+                break;
             }
         }
 
     public:
-        void search(const Data_* query, Index_ k, std::vector<Index_>* output_indices, std::vector<Distance_>* output_distances) {
+        void search(const Data_* query, Index_ k, std::vector<Index_>* output_indices, std::vector<Distance_>* output_distances) override {
             if constexpr (same_internal_data) {
                 my_queue = my_parent.my_index.searchKnn(query, k);
                 search_raw(query, k, output_indices, output_distances);
@@ -252,13 +265,14 @@ namespace knncolle_hnsw {
             my_dim(data.num_dimensions()),
             my_obs(data.num_observations()),
             my_space(distance_config.create(my_dim)),
-            my_normalize(distance_config.normalize),
+            my_normalize_method(distance_config.normalize_method),
+            my_custom_normalize(distance_config.custom_normalize),
             my_index(my_space.get(), my_obs, options.num_links, options.ef_construction)
         {
             auto work = data.new_extractor();
             auto work_par = dynamic_cast<knncolle::ParallelMatrixExtractor<Data_>*>(work.get());
 
-            if constexpr (std::is_same<Data_, HnswData_>::value) {
+            if constexpr (std::is_same_v<Data_, HnswData_>) {
 
                 if (work_par == nullptr) {
                     for (Index_ i = 0; i < my_obs; ++i) {
@@ -318,24 +332,26 @@ namespace knncolle_hnsw {
         // references to the object in my_index are still valid after copying.
         std::shared_ptr<hnswlib::SpaceInterface<HnswData_> > my_space;
 
-        std::function<HnswData_(HnswData_)> my_normalize;
+        DistanceNormalizeMethod my_normalize_method;
+        std::function<Distance_(Distance_)> my_custom_normalize;
+
         hnswlib::HierarchicalNSW<HnswData_> my_index;
 
         friend class HnswSearcherParallel<Index_, Data_, Distance_, HnswData_>;
 
     public:
-        std::size_t num_dimensions() const {
+        std::size_t num_dimensions() const override {
             return my_dim;
         }
 
-        Index_ num_observations() const {
+        Index_ num_observations() const override {
             return my_obs;
         }
 
         /**
          * Creates a `HnswSearcherParallel` instance.
          */
-        std::unique_ptr<knncolle::Searcher<Index_, Data_, Distance_> > initialize() const {
+        std::unique_ptr<knncolle::Searcher<Index_, Data_, Distance_> > initialize() const override {
             return std::make_unique<HnswSearcherParallel<Index_, Data_, Distance_, HnswData_> >(*this);
         }
     };
@@ -404,7 +420,7 @@ namespace knncolle_hnsw {
         /**
          * Creates a `HnswPrebuiltParallel` instance.
          */
-        knncolle::Prebuilt<Index_, Data_, Distance_>* build_raw(const Matrix_& data) const {
+        knncolle::Prebuilt<Index_, Data_, Distance_>* build_raw(const Matrix_& data) const override {
             return new HnswPrebuiltParallel<Index_, Data_, Distance_, HnswData_>(data, my_distance_config, my_options);
         }
     };
