@@ -7,7 +7,7 @@ set(UMAP_TESTS "UmapTests")
 
 # Setup of test build depends on setup of parent project, the plugin itself
 
-PROJECT(${UMAP_TESTS})
+PROJECT(${UMAP_TESTS} LANGUAGES CXX)
 
 # -----------------------------------------------------------------------------
 # Dependencies
@@ -17,7 +17,7 @@ include(FetchContent)
 FetchContent_Declare(
     Catch2
     GIT_REPOSITORY https://github.com/catchorg/Catch2
-    GIT_TAG v3.8.1
+    GIT_TAG v3.13.0
     GIT_SHALLOW TRUE
     FIND_PACKAGE_ARGS
 )

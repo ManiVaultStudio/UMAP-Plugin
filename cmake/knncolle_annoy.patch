@@ -1,11 +1,24 @@
-diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 5ac0b9f..16b656a 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -27,41 +27,3 @@ else()
- endif()
+@@ -14,55 +14,7 @@ add_library(knncolle::knncolle_annoy ALIAS knncolle_annoy)
  
- target_link_libraries(knncolle_annoy INTERFACE knncolle::knncolle Annoy::Annoy)
+ target_include_directories(knncolle_annoy INTERFACE
+     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/knncolle_annoy>)
++    )
+ target_compile_features(knncolle_annoy INTERFACE cxx_std_17)
+ 
+-# Dependencies
+-option(KNNCOLLE_ANNOY_FETCH_EXTERN "Automatically fetch knncolle_annoy's external dependencies." ON)
+-if(KNNCOLLE_ANNOY_FETCH_EXTERN)
+-    add_subdirectory(extern)
+-else()
+-    find_package(knncolle_knncolle 3.1.0 CONFIG REQUIRED)
+-    find_package(ltla_sanisizer 0.1.5 CONFIG REQUIRED)
+-    find_package(Annoy CONFIG REQUIRED)
+-endif()
+-
+ target_link_libraries(knncolle_annoy INTERFACE knncolle::knncolle ltla::sanisizer Annoy::Annoy)
 -
 -# Tests
 -if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)

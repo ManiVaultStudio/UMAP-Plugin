@@ -15,47 +15,44 @@ if(NOT libscran_umappp_FOUND AND NOT TARGET libscran::umappp)
     # the patches enable use to use the local dependency versions
     fetch_content_url(aarand "https://github.com/LTLA/aarand/archive/refs/tags/v1.1.0.zip")
     fetch_content_url(subpar "https://github.com/LTLA/subpar/archive/refs/tags/v0.4.1.zip")
-    fetch_content_url(sanisizer "https://github.com/LTLA/sanisizer/archive/refs/tags/v0.1.3.zip")
-    fetch_cpm_repo_patch(knncolle "https://github.com/knncolle/knncolle.git" v3.0.1 "knncolle.patch") # depends on subpar
-    fetch_cpm_repo_patch(irlba "https://github.com/LTLA/CppIrlba.git" v2.0.2 "irlba.patch") # depends on eigen, aarand and subpar
-    fetch_cpm_repo_patch(umappp "https://github.com/libscran/umappp.git" v3.1.0 "umappp.patch") # depends on aarand, subpar, CppIrlba and knnolle
+    fetch_content_url(sanisizer "https://github.com/LTLA/sanisizer/archive/refs/tags/v0.2.1.zip")
+    fetch_cpm_repo_patch(knncolle "https://github.com/knncolle/knncolle.git" v3.1.0 "knncolle.patch") # depends on subpar
+    fetch_cpm_repo_patch(irlba "https://github.com/LTLA/CppIrlba.git" v3.0.1 "irlba.patch") # depends on eigen, aarand and subpar
+    fetch_cpm_repo_patch(umappp "https://github.com/libscran/umappp.git" v3.2.0 "umappp.patch") # depends on aarand, subpar, CppIrlba and knnolle
 else()
     message(STATUS "UMAPAnalysisPlugin: Using external Umappp")
+endif()
 
-    set(KNNCOLLE_HNSW_FETCH_EXTERN OFF)
-    find_package(hnswlib CONFIG QUIET)
-    if(NOT hnswlib_FOUND AND NOT TARGET hnswlib::hnswlib)
-        FetchContent_Declare(
-          hnswlib 
-          GIT_REPOSITORY https://github.com/nmslib/hnswlib
-          GIT_TAG v0.8.0
-        )
-        FetchContent_MakeAvailable(hnswlib)
-    else()
-        message(STATUS "UMAPAnalysisPlugin: Using external hnswlib")
-    endif()
-
-    set(KNNCOLLE_ANNOY_FETCH_EXTERN OFF)
-    find_package(Annoy CONFIG QUIET)
-    if(NOT Annoy_FOUND AND NOT TARGET Annoy::Annoy)
-        FetchContent_Declare(
-          Annoy 
-          GIT_REPOSITORY https://github.com/spotify/Annoy
-          GIT_TAG v1.17.3
-        )
-        FetchContent_MakeAvailable(Annoy)
-    else()
-        message(STATUS "UMAPAnalysisPlugin: Using external Annoy")
-    endif()
-
+find_package(hnswlib CONFIG QUIET)
+if(NOT hnswlib_FOUND AND NOT TARGET hnswlib::hnswlib)
+    FetchContent_Declare(
+        hnswlib 
+        GIT_REPOSITORY https://github.com/nmslib/hnswlib
+        GIT_TAG v0.8.0
+    )
+    FetchContent_MakeAvailable(hnswlib)
+else()
+    message(STATUS "UMAPAnalysisPlugin: Using external hnswlib")
 endif()
 
 find_package(knncolle_knncolle_hnsw CONFIG QUIET)
 if(NOT knncolle_knncolle_hnsw_FOUND AND NOT TARGET knncolle::knncolle_hnsw)
-    fetch_cpm_repo_patch(knncolle_hnsw "https://github.com/knncolle/knncolle_hnsw.git" v0.2.1 "knncolle_hnsw.patch")
+    fetch_cpm_repo_patch(knncolle_hnsw "https://github.com/knncolle/knncolle_hnsw.git" v0.3.0 "knncolle_hnsw.patch")
+endif()
+
+find_package(Annoy CONFIG QUIET)
+if(NOT Annoy_FOUND AND NOT TARGET Annoy::Annoy)
+    FetchContent_Declare(
+        Annoy 
+        GIT_REPOSITORY https://github.com/spotify/Annoy
+        GIT_TAG v1.17.3
+    )
+    FetchContent_MakeAvailable(Annoy)
+else()
+    message(STATUS "UMAPAnalysisPlugin: Using external Annoy")
 endif()
 
 find_package(knncolle_knncolle_annoy CONFIG QUIET)
 if(NOT knncolle_knncolle_annoy_FOUND AND NOT TARGET knncolle::knncolle_annoy)
-    fetch_cpm_repo_patch(knncolle_annoy "https://github.com/knncolle/knncolle_annoy.git" v0.2.0 "knncolle_annoy.patch")
+    fetch_cpm_repo_patch(knncolle_annoy "https://github.com/knncolle/knncolle_annoy.git" v0.3.0 "knncolle_annoy.patch")
 endif()
