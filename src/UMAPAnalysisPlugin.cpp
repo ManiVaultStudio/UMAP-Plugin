@@ -287,7 +287,10 @@ UMAPWorker::UMAPWorker(Dataset<Points> inputPoints, DatasetTask* parentTask, con
     _settingsAction(settings),
     _knnSettingsAction(knnSettings),
     _advSettingsAction(advSettings),
+    _shouldStop(false),
+    _parentTask(parentTask),
     _embedding(),
+    _outEmbedding(),
     _outDimensions(outDim)
 {
     _embedding.resize(inputPoints->getNumPoints() * static_cast<size_t>(_outDimensions));
