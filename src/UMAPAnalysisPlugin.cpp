@@ -99,10 +99,19 @@ namespace
 
 }
 
+QDebug operator<<(QDebug debug, const umappp::InitializeMethod initMethod)
+{
+    switch (initMethod) {
+    case umappp::InitializeMethod::RANDOM:      debug << "RANDOM";                  break;
+    case umappp::InitializeMethod::SPECTRAL:    debug << "SPECTRAL";                break;
+    case umappp::InitializeMethod::NONE:        debug << "NONE (custom init)";      break;
+    }
+    return debug;
+}
 
-/// ////////// ///
-///   Plugin   ///
-/// ////////// ///
+// =============================================================================
+// Plugin
+// =============================================================================
 
 UMAPAnalysisPlugin::UMAPAnalysisPlugin(const PluginFactory* factory) :
     AnalysisPlugin(factory),
@@ -159,6 +168,8 @@ void UMAPAnalysisPlugin::init()
         _outputPoints->setDimensionNames(dimNames); // calls notifyDatasetDataDimensionsChanged
         };
 
+    Dataset<Points> inputPoints = getInputDataset<Points>();
+
     // Create UMAP output dataset (a points dataset which is derived from the input points dataset) and set the output dataset
     // we do not need to create a new output when loading this plugin from a project
     if (!outputDataInit())
@@ -166,17 +177,25 @@ void UMAPAnalysisPlugin::init()
         _outputPoints = Dataset<Points>(mv::data().createDerivedDataset("UMAP Embedding", getInputDataset(), getInputDataset()));
         setOutputDataset(_outputPoints);
 
-        initEmbeddingsAndDimensions(getInputDataset<Points>()->getNumPoints());
+        initEmbeddingsAndDimensions(inputPoints->getNumPoints());
     }
     
     _outputPoints   = getOutputDataset<Points>();
-    _numPoints      = getInputDataset<Points>()->getNumPoints();
+    _numPoints      = inputPoints->getNumPoints();
 
     // Add settings to UI
     _outputPoints->addAction(_settingsAction);
     _outputPoints->addAction(_knnSettingsAction);
     _outputPoints->addAction(_advSettingsAction);
     
+    auto dimensionsGroupAction = new GroupAction(this, "Dimensions", true);
+
+    dimensionsGroupAction->addAction(&inputPoints->getFullDataset<Points>()->getDimensionsPickerAction());
+    dimensionsGroupAction->setText(QString("Input dimensions (%1)").arg(inputPoints->getFullDataset<Points>()->text()));
+    dimensionsGroupAction->setShowLabels(false);
+
+    _outputPoints->addAction(*dimensionsGroupAction);
+
     // Automatically focus on the UMAP data set
     _outputPoints->getDataHierarchyItem().select();
     _outputPoints->_infoAction->collapse();
@@ -202,12 +221,11 @@ void UMAPAnalysisPlugin::init()
         _outDimensions = _settingsAction.getNumberEmbDimsAction().getValue();
 
         // if the user sets a different embedding dimension than 2, re-size the output data
-        if(getOutputDataset<Points>()->getNumDimensions() != _outDimensions)
+        if(getOutputDataset<Points>()->getNumDimensions() != static_cast<unsigned int>(_outDimensions)) {
             initEmbeddingsAndDimensions(_numPoints);
+        }
 
-        Dataset<Points> inputPoints = getInputDataset<Points>();
-        _umapWorker = new UMAPWorker(inputPoints, &getOutputDataset()->getTask(), _outDimensions, &_settingsAction, &_knnSettingsAction, &_advSettingsAction);
-
+        _umapWorker = new UMAPWorker(getInputDataset<Points>(), &getOutputDataset()->getTask(), _outDimensions, &_settingsAction, &_knnSettingsAction, &_advSettingsAction);
         _umapWorker->changeThread(&_workerThread);
 
         // To-Worker signals
@@ -215,7 +233,7 @@ void UMAPAnalysisPlugin::init()
         connect(this, &UMAPAnalysisPlugin::stopWorker, _umapWorker, &UMAPWorker::stop, Qt::DirectConnection);
 
         // From-Worker signals
-        connect(_umapWorker, &UMAPWorker::embeddingUpdate, this, [this](const std::vector<scalar_t> embedding, int epoch) {
+        connect(_umapWorker, &UMAPWorker::embeddingUpdate, this, [this](const std::vector<scalar_t>& embedding, int epoch) {
             getOutputDataset<Points>()->setData(embedding.data(), embedding.size() / _outDimensions, _outDimensions);
             events().notifyDatasetDataChanged(getOutputDataset());
             });
@@ -261,19 +279,19 @@ QVariantMap UMAPAnalysisPlugin::toVariantMap() const
     return variantMap;
 }
 
+// =============================================================================
+// Worker
+// =============================================================================
 
-/// ////////// ///
-/// UMAPWorker ///
-/// ////////// ///
-
-UMAPWorker::UMAPWorker(Dataset<Points>& inputPoints, DatasetTask* parentTask, int outDim, SettingsAction* settings, KnnSettingsAction* knnSettings, AdvancedSettingsAction* advSettings):
-    _shouldStop(false),
-    _inputDataset(inputPoints),
-    _parentTask(parentTask),
+UMAPWorker::UMAPWorker(Dataset<Points> inputPoints, DatasetTask* parentTask, const int outDim, SettingsAction* settings, KnnSettingsAction* knnSettings, AdvancedSettingsAction* advSettings):
+    _inputDataset(std::move(inputPoints)),
     _settingsAction(settings),
     _knnSettingsAction(knnSettings),
     _advSettingsAction(advSettings),
+    _shouldStop(false),
+    _parentTask(parentTask),
     _embedding(),
+    _outEmbedding(),
     _outDimensions(outDim)
 {
     _embedding.resize(inputPoints->getNumPoints() * static_cast<size_t>(_outDimensions));
@@ -316,10 +334,10 @@ void UMAPWorker::compute()
     auto [data, indices, numEnabledDimensions, numPoints] = extractEnabledDimensions(_inputDataset);
 
     // determine threading
-    const bool parallel_knn = _knnSettingsAction->getMultithreadAction().isChecked();
-    const bool parallel_layout = _advSettingsAction->getMultithreadAction().isChecked();
-    unsigned int num_threads_knn = 1;
-    unsigned int num_threads_layout = 1;
+    const bool parallel_knn     = _knnSettingsAction->getMultithreadAction().isChecked();
+    const bool parallel_layout  = _advSettingsAction->getMultithreadAction().isChecked();
+    int num_threads_knn         = 1;
+    int num_threads_layout      = 1;
 
 #ifdef _OPENMP
     {
@@ -377,7 +395,7 @@ void UMAPWorker::compute()
                 break;
             case KnnMetric::DOT: {
                 auto inner_config = knncolle_hnsw::DistanceConfig<scalar_t>();
-                inner_config.create = [](std::size_t dim) -> hnswlib::SpaceInterface<scalar_t>*{
+                inner_config.create = [](const std::size_t dim) -> hnswlib::SpaceInterface<scalar_t>*{
                     return static_cast<hnswlib::InnerProductSpace*>(new hnswlib::InnerProductSpace(dim));
                     };
 
@@ -389,7 +407,7 @@ void UMAPWorker::compute()
                 break;
             case KnnMetric::CORRELATION: {
                 auto correlation_config = knncolle_hnsw::DistanceConfig<scalar_t>();
-                correlation_config.create = [](std::size_t dim) -> hnswlib::SpaceInterface<scalar_t>*{
+                correlation_config.create = [](const std::size_t dim) -> hnswlib::SpaceInterface<scalar_t>*{
                     return static_cast<hnswlib::CorrelationSpace*>(new hnswlib::CorrelationSpace(dim));
                     };
 
@@ -434,6 +452,8 @@ void UMAPWorker::compute()
     else
         opt.initialize_method = umappp::InitializeMethod::SPECTRAL;
 
+    qDebug() << "UMAP: layout -> " << opt.initialize_method;
+
     // option that are not exposed
     opt.initialize_random_on_spectral_fail = true;
     opt.initialize_spectral_irlba_options = {};
@@ -463,16 +483,14 @@ void UMAPWorker::compute()
 
     // move this here from umappp::initialize so that we can log the resulting a and b settings
     if (opt.a <= 0 || opt.b <= 0) {
-        auto found = umappp::find_ab(opt.spread, opt.min_dist);
-        opt.a = found.first;
-        opt.b = found.second;
+        std::tie(opt.a, opt.b) = umappp::find_ab(opt.spread, opt.min_dist);
     }
 
     qDebug() << "UMAP: layout settings: a: " << opt.a << ", b: " << opt.b << ", min_dist: " << opt.min_dist << ", spread: " << opt.spread;
 
     auto status = umappp::initialize<integer_t, scalar_t>(nearestNeighbors, _outDimensions, _embedding.data(), opt);
 
-    const auto updateEmbedding = [this](int ep) -> void {
+    const auto updateEmbedding = [this](const int ep) -> void {
         _outEmbedding.assign(_embedding.begin(), _embedding.end());
         emit embeddingUpdate(_outEmbedding, ep);
         };
@@ -512,6 +530,10 @@ void UMAPWorker::compute()
 
     cleanup();
 }
+
+// =============================================================================
+// Factory
+// =============================================================================
 
 UMAPAnalysisPluginFactory::UMAPAnalysisPluginFactory()
 {
