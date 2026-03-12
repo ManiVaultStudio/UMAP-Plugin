@@ -282,11 +282,8 @@ QVariantMap UMAPAnalysisPlugin::toVariantMap() const
 // Worker
 // =============================================================================
 
-
-UMAPWorker::UMAPWorker(Dataset<Points>& inputPoints, DatasetTask* parentTask, int outDim, SettingsAction* settings, KnnSettingsAction* knnSettings, AdvancedSettingsAction* advSettings):
-    _shouldStop(false),
-    _inputDataset(inputPoints),
-    _parentTask(parentTask),
+UMAPWorker::UMAPWorker(Dataset<Points> inputPoints, DatasetTask* parentTask, const int outDim, SettingsAction* settings, KnnSettingsAction* knnSettings, AdvancedSettingsAction* advSettings):
+    _inputDataset(std::move(inputPoints)),
     _settingsAction(settings),
     _knnSettingsAction(knnSettings),
     _advSettingsAction(advSettings),

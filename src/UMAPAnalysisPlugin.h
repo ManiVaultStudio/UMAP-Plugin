@@ -46,7 +46,7 @@ class UMAPWorker : public QObject
     Q_OBJECT
 
 public:
-    UMAPWorker(Dataset<Points>& inputPoints, DatasetTask* parentTask, int outDim, SettingsAction* settings, KnnSettingsAction* knnSettings, AdvancedSettingsAction* advSettings);
+    UMAPWorker(Dataset<Points> inputPoints, DatasetTask* parentTask, const int outDim, SettingsAction* settings, KnnSettingsAction* knnSettings, AdvancedSettingsAction* advSettings);
 
 public: // Setter
     void changeThread(QThread* targetThread);
