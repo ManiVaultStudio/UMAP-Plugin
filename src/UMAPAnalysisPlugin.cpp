@@ -385,7 +385,7 @@ void UMAPWorker::compute()
                 break;
             case KnnMetric::DOT: {
                 auto inner_config = knncolle_hnsw::DistanceConfig<scalar_t>();
-                inner_config.create = [](std::size_t dim) -> hnswlib::SpaceInterface<scalar_t>*{
+                inner_config.create = [](const std::size_t dim) -> hnswlib::SpaceInterface<scalar_t>*{
                     return static_cast<hnswlib::InnerProductSpace*>(new hnswlib::InnerProductSpace(dim));
                     };
 
@@ -397,7 +397,7 @@ void UMAPWorker::compute()
                 break;
             case KnnMetric::CORRELATION: {
                 auto correlation_config = knncolle_hnsw::DistanceConfig<scalar_t>();
-                correlation_config.create = [](std::size_t dim) -> hnswlib::SpaceInterface<scalar_t>*{
+                correlation_config.create = [](const std::size_t dim) -> hnswlib::SpaceInterface<scalar_t>*{
                     return static_cast<hnswlib::CorrelationSpace*>(new hnswlib::CorrelationSpace(dim));
                     };
 
@@ -480,7 +480,7 @@ void UMAPWorker::compute()
 
     auto status = umappp::initialize<integer_t, scalar_t>(nearestNeighbors, _outDimensions, _embedding.data(), opt);
 
-    const auto updateEmbedding = [this](int ep) -> void {
+    const auto updateEmbedding = [this](const int ep) -> void {
         _outEmbedding.assign(_embedding.begin(), _embedding.end());
         emit embeddingUpdate(_outEmbedding, ep);
         };
