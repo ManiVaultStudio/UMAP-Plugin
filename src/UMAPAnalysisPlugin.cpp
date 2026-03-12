@@ -109,9 +109,9 @@ QDebug operator<<(QDebug debug, const umappp::InitializeMethod initMethod)
     return debug;
 }
 
-/// ////////// ///
-///   Plugin   ///
-/// ////////// ///
+// =============================================================================
+// Plugin
+// =============================================================================
 
 UMAPAnalysisPlugin::UMAPAnalysisPlugin(const PluginFactory* factory) :
     AnalysisPlugin(factory),
@@ -278,10 +278,10 @@ QVariantMap UMAPAnalysisPlugin::toVariantMap() const
     return variantMap;
 }
 
+// =============================================================================
+// Worker
+// =============================================================================
 
-/// ////////// ///
-/// UMAPWorker ///
-/// ////////// ///
 
 UMAPWorker::UMAPWorker(Dataset<Points>& inputPoints, DatasetTask* parentTask, int outDim, SettingsAction* settings, KnnSettingsAction* knnSettings, AdvancedSettingsAction* advSettings):
     _shouldStop(false),
@@ -531,6 +531,10 @@ void UMAPWorker::compute()
 
     cleanup();
 }
+
+// =============================================================================
+// Factory
+// =============================================================================
 
 UMAPAnalysisPluginFactory::UMAPAnalysisPluginFactory()
 {
