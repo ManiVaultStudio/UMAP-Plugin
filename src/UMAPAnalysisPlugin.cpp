@@ -99,6 +99,15 @@ namespace
 
 }
 
+QDebug operator<<(QDebug debug, const umappp::InitializeMethod initMethod)
+{
+    switch (initMethod) {
+    case umappp::InitializeMethod::RANDOM:      debug << "RANDOM";                  break;
+    case umappp::InitializeMethod::SPECTRAL:    debug << "SPECTRAL";                break;
+    case umappp::InitializeMethod::NONE:        debug << "NONE (custom init)";      break;
+    }
+    return debug;
+}
 
 /// ////////// ///
 ///   Plugin   ///
@@ -441,6 +450,8 @@ void UMAPWorker::compute()
         opt.initialize_method = umappp::InitializeMethod::RANDOM;
     else
         opt.initialize_method = umappp::InitializeMethod::SPECTRAL;
+
+    qDebug() << "UMAP: layout -> " << opt.initialize_method;
 
     // option that are not exposed
     opt.initialize_random_on_spectral_fail = true;
