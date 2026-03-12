@@ -333,10 +333,10 @@ void UMAPWorker::compute()
     auto [data, indices, numEnabledDimensions, numPoints] = extractEnabledDimensions(_inputDataset);
 
     // determine threading
-    const bool parallel_knn = _knnSettingsAction->getMultithreadAction().isChecked();
-    const bool parallel_layout = _advSettingsAction->getMultithreadAction().isChecked();
-    unsigned int num_threads_knn = 1;
-    unsigned int num_threads_layout = 1;
+    const bool parallel_knn     = _knnSettingsAction->getMultithreadAction().isChecked();
+    const bool parallel_layout  = _advSettingsAction->getMultithreadAction().isChecked();
+    int num_threads_knn         = 1;
+    int num_threads_layout      = 1;
 
 #ifdef _OPENMP
     {
