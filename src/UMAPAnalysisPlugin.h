@@ -104,7 +104,7 @@ public: // Serialization
 
     /**
      * Load plugin from variant map
-     * @param Variant map representation of the plugin
+     * @param variantMap map representation of the plugin
      */
     Q_INVOKABLE void fromVariantMap(const QVariantMap& variantMap) override;
 
