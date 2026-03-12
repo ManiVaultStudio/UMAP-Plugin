@@ -159,6 +159,8 @@ void UMAPAnalysisPlugin::init()
         _outputPoints->setDimensionNames(dimNames); // calls notifyDatasetDataDimensionsChanged
         };
 
+    Dataset<Points> inputPoints = getInputDataset<Points>();
+
     // Create UMAP output dataset (a points dataset which is derived from the input points dataset) and set the output dataset
     // we do not need to create a new output when loading this plugin from a project
     if (!outputDataInit())
@@ -166,11 +168,11 @@ void UMAPAnalysisPlugin::init()
         _outputPoints = Dataset<Points>(mv::data().createDerivedDataset("UMAP Embedding", getInputDataset(), getInputDataset()));
         setOutputDataset(_outputPoints);
 
-        initEmbeddingsAndDimensions(getInputDataset<Points>()->getNumPoints());
+        initEmbeddingsAndDimensions(inputPoints->getNumPoints());
     }
     
     _outputPoints   = getOutputDataset<Points>();
-    _numPoints      = getInputDataset<Points>()->getNumPoints();
+    _numPoints      = inputPoints->getNumPoints();
 
     // Add settings to UI
     _outputPoints->addAction(_settingsAction);
@@ -205,9 +207,7 @@ void UMAPAnalysisPlugin::init()
         if(getOutputDataset<Points>()->getNumDimensions() != _outDimensions)
             initEmbeddingsAndDimensions(_numPoints);
 
-        Dataset<Points> inputPoints = getInputDataset<Points>();
-        _umapWorker = new UMAPWorker(inputPoints, &getOutputDataset()->getTask(), _outDimensions, &_settingsAction, &_knnSettingsAction, &_advSettingsAction);
-
+        _umapWorker = new UMAPWorker(getInputDataset<Points>(), &getOutputDataset()->getTask(), _outDimensions, &_settingsAction, &_knnSettingsAction, &_advSettingsAction);
         _umapWorker->changeThread(&_workerThread);
 
         // To-Worker signals
