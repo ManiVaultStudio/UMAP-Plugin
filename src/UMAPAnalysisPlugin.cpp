@@ -179,6 +179,14 @@ void UMAPAnalysisPlugin::init()
     _outputPoints->addAction(_knnSettingsAction);
     _outputPoints->addAction(_advSettingsAction);
     
+    auto dimensionsGroupAction = new GroupAction(this, "Dimensions", true);
+
+    dimensionsGroupAction->addAction(&inputPoints->getFullDataset<Points>()->getDimensionsPickerAction());
+    dimensionsGroupAction->setText(QString("Input dimensions (%1)").arg(inputPoints->getFullDataset<Points>()->text()));
+    dimensionsGroupAction->setShowLabels(false);
+
+    _outputPoints->addAction(*dimensionsGroupAction);
+
     // Automatically focus on the UMAP data set
     _outputPoints->getDataHierarchyItem().select();
     _outputPoints->_infoAction->collapse();
