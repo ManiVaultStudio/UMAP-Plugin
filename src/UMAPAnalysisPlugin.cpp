@@ -482,9 +482,7 @@ void UMAPWorker::compute()
 
     // move this here from umappp::initialize so that we can log the resulting a and b settings
     if (opt.a <= 0 || opt.b <= 0) {
-        auto found = umappp::find_ab(opt.spread, opt.min_dist);
-        opt.a = found.first;
-        opt.b = found.second;
+        std::tie(opt.a, opt.b) = umappp::find_ab(opt.spread, opt.min_dist);
     }
 
     qDebug() << "UMAP: layout settings: a: " << opt.a << ", b: " << opt.b << ", min_dist: " << opt.min_dist << ", spread: " << opt.spread;
