@@ -56,7 +56,7 @@ public slots:
     void stop();
 
 signals:
-    void embeddingUpdate(const std::vector<scalar_t> embedding, int epoch);
+    void embeddingUpdate(const std::vector<scalar_t>& embedding, int epoch);
     void finished();
 
 private:

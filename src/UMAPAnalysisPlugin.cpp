@@ -223,7 +223,7 @@ void UMAPAnalysisPlugin::init()
         connect(this, &UMAPAnalysisPlugin::stopWorker, _umapWorker, &UMAPWorker::stop, Qt::DirectConnection);
 
         // From-Worker signals
-        connect(_umapWorker, &UMAPWorker::embeddingUpdate, this, [this](const std::vector<scalar_t> embedding, int epoch) {
+        connect(_umapWorker, &UMAPWorker::embeddingUpdate, this, [this](const std::vector<scalar_t>& embedding, int epoch) {
             getOutputDataset<Points>()->setData(embedding.data(), embedding.size() / _outDimensions, _outDimensions);
             events().notifyDatasetDataChanged(getOutputDataset());
             });
