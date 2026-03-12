@@ -221,8 +221,9 @@ void UMAPAnalysisPlugin::init()
         _outDimensions = _settingsAction.getNumberEmbDimsAction().getValue();
 
         // if the user sets a different embedding dimension than 2, re-size the output data
-        if(getOutputDataset<Points>()->getNumDimensions() != _outDimensions)
+        if(getOutputDataset<Points>()->getNumDimensions() != static_cast<unsigned int>(_outDimensions)) {
             initEmbeddingsAndDimensions(_numPoints);
+        }
 
         _umapWorker = new UMAPWorker(getInputDataset<Points>(), &getOutputDataset()->getTask(), _outDimensions, &_settingsAction, &_knnSettingsAction, &_advSettingsAction);
         _umapWorker->changeThread(&_workerThread);
