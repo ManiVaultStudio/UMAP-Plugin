@@ -30,12 +30,24 @@ static void testInstructionSets(const float ref, const std::vector<float>& vec1,
 #if defined(USE_SSE)
 	const float test_sse = hnswlib::CorrelationDistanceSIMD4ExtSSE(vec1.data(), vec2.data(), &dim);
 	expectNear(test_sse, ref, 1e-6f, "Reference should be same as SSE results");
+
+/// ////////// ///
+///   Helper   ///
+/// ////////// ///
+
+namespace
+{
+	void testInstructionSets(const float ref, const std::vector<float>& vec1, const std::vector<float>& vec2, const size_t dim) {
+#ifdef USE_SSE
+		const float test_sse = hnswlib::CorrelationDistanceSIMD4ExtSSE(vec1.data(), vec2.data(), &dim);
+		expectNear(test_sse, ref, 1e-6f, "Reference should be same as SSE results");
 #endif
 
-#if defined(USE_AVX)
-	const float test_avx = hnswlib::CorrelationDistanceSIMD8ExtAVX(vec1.data(), vec2.data(), &dim);
-	expectNear(test_avx, ref, 1e-6f, "Reference should be same as AVX results");
+#ifdef USE_AVX
+		const float test_avx = hnswlib::CorrelationDistanceSIMD8ExtAVX(vec1.data(), vec2.data(), &dim);
+		expectNear(test_avx, ref, 1e-6f, "Reference should be same as AVX results");
 #endif
+	}
 }
 
 TEST_CASE("Correlation distance reference", "[DIST][CORR]") {
