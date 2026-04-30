@@ -57,3 +57,14 @@
 -install(FILES "${CMAKE_CURRENT_BINARY_DIR}/knncolle_knncolle_hnswConfig.cmake"
 -    "${CMAKE_CURRENT_BINARY_DIR}/knncolle_knncolle_hnswConfigVersion.cmake"
 -    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/knncolle_knncolle_hnsw)
+--- a/include/knncolle_hnsw/Hnsw.hpp
++++ b/include/knncolle_hnsw/Hnsw.hpp
+@@ -296,7 +296,7 @@ public:
+ 
+         // Dear God, make saveIndex() const.
+         auto index_ptr = const_cast<hnswlib::HierarchicalNSW<HnswData_>*>(&my_index);
+-        index_ptr->saveIndex(dir / "INDEX");
++        index_ptr->saveIndex((dir / "INDEX").string());
+     }
+ 
+     HnswPrebuilt(const std::filesystem::path& dir) : 
