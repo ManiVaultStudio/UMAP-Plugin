@@ -283,8 +283,8 @@ QVariantMap UMAPAnalysisPlugin::toVariantMap() const
 // Worker
 // =============================================================================
 
-UMAPWorker::UMAPWorker(Dataset<Points> inputPoints, DatasetTask* parentTask, const int outDim, SettingsAction* settings, KnnSettingsAction* knnSettings, AdvancedSettingsAction* advSettings):
-    _inputDataset(std::move(inputPoints)),
+UMAPWorker::UMAPWorker(const Dataset<Points>& inputPoints, DatasetTask* parentTask, const int outDim, SettingsAction* settings, KnnSettingsAction* knnSettings, AdvancedSettingsAction* advSettings):
+    _inputDataset(inputPoints),
     _settingsAction(settings),
     _knnSettingsAction(knnSettings),
     _advSettingsAction(advSettings),
@@ -376,6 +376,7 @@ void UMAPWorker::compute()
             case KnnMetric::COSINE:     searcher = KnnAnnoyAngular(opt).build_unique(mat); break;
             case KnnMetric::DOT:        searcher = KnnAnnoyDot(opt).build_unique(mat); break;
             case KnnMetric::EUCLIDEAN:  searcher = KnnAnnoyEuclidean(opt).build_unique(mat); break;
+            case KnnMetric::CORRELATION:  [[fallthrough]];
             default:
                 qDebug() << "UMAP: unknown metric using euclidean";
                 searcher = KnnAnnoyEuclidean(opt).build_unique(mat); break;
