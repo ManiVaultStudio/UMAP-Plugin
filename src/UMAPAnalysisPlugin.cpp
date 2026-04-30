@@ -146,9 +146,9 @@ void UMAPAnalysisPlugin::deleteWorker()
 
 void UMAPAnalysisPlugin::init()
 {
-    auto initEmbeddingsAndDimensions = [this](uint32_t numPoints) {
+    auto initEmbeddingsAndDimensions = [this](const std::uint64_t numPoints) {
         std::vector<scalar_t> initEmbeddingValues;
-        initEmbeddingValues.resize(numPoints * static_cast<size_t>(_outDimensions));
+        initEmbeddingValues.resize(numPoints * _outDimensions);
 
         _outputPoints->setData(initEmbeddingValues.data(), initEmbeddingValues.size() / _outDimensions, _outDimensions);
         events().notifyDatasetDataChanged(_outputPoints);
@@ -294,7 +294,7 @@ UMAPWorker::UMAPWorker(Dataset<Points> inputPoints, DatasetTask* parentTask, con
     _outEmbedding(),
     _outDimensions(outDim)
 {
-    _embedding.resize(inputPoints->getNumPoints() * static_cast<size_t>(_outDimensions));
+    _embedding.resize(_inputDataset->getNumPoints() * static_cast<size_t>(_outDimensions));
 
     connect(_parentTask, &DatasetTask::requestAbort, this, &UMAPWorker::stop, Qt::DirectConnection);
 }
