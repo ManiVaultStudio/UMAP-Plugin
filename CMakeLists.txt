@@ -145,7 +145,7 @@ target_link_libraries(${UMAPANALYSIS} PRIVATE knncolle::knncolle_annoy)
 target_link_libraries(${UMAPANALYSIS} PRIVATE ManiVault::Core)
 target_link_libraries(${UMAPANALYSIS} PRIVATE ManiVault::PointData)
 
-if(${MV_UMAP_USE_OPENMP} AND OpenMP_CXX_FOUND)
+if(MV_UMAP_USE_OPENMP AND OpenMP_CXX_FOUND)
     target_link_libraries(${UMAPANALYSIS} PRIVATE OpenMP::OpenMP_CXX)
 endif()
 
@@ -180,7 +180,7 @@ endif()
 # -----------------------------------------------------------------------------
 # Unit testing
 # -----------------------------------------------------------------------------
-if(${MV_UMAP_UNIT_TESTS})
+if(MV_UMAP_UNIT_TESTS)
 	MESSAGE( STATUS "Build UMAP unit tests")
 	add_subdirectory("test")
 endif()
