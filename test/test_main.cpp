@@ -24,9 +24,10 @@ using namespace testing;
 
 using integer_type  = int32_t;
 using scalar_type   = float;
-using DataMatrix	= knncolle::ParallelMatrix< /* observation index */ integer_type, /* data type */ scalar_type>;
+using DataMatrix	= knncolle::SimpleMatrix< /* observation index */ integer_type, /* data type */ scalar_type>;
+using DataMatrixPar	= knncolle::ParallelMatrix< /* observation index */ integer_type, /* data type */ scalar_type>;
 using KnnHnsw       = knncolle_hnsw::HnswBuilder<integer_type, scalar_type, scalar_type, DataMatrix>;
-using KnnHnswPar    = knncolle_hnsw::HnswBuilderParallel<integer_type, scalar_type, scalar_type, DataMatrix>;
+using KnnHnswPar    = knncolle_hnsw::HnswBuilderParallel<integer_type, scalar_type, scalar_type, DataMatrixPar>;
 using KnnList       = knncolle::NeighborList<integer_type, scalar_type>;
 
 /// ////////// ///
@@ -262,12 +263,13 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 
 	const std::vector<scalar_type> data = gen.randomMatrix(numDim, numPoints);
 
-	const auto mat = DataMatrix(numDim, numPoints, data.data());
-
 	knncolle_hnsw::HnswOptions opt;
 	opt.num_links = 16;
 	opt.ef_search = 250;
 	opt.ef_construction = 250;
+
+	const auto mat = DataMatrix(numDim, numPoints, data.data());
+	const auto matPar = DataMatrixPar(numDim, numPoints, data.data());
 
 	const int numThreads = static_cast<int>(std::thread::hardware_concurrency());
 
@@ -301,7 +303,7 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 		{
 			timer.start();
 			info("Search parallel: addition and query");
-			auto searcherParAll = KnnHnswPar(knncolle_hnsw::configure_euclidean_distance<scalar_type>(), opt).build_unique(mat);
+			auto searcherParAll = KnnHnswPar(knncolle_hnsw::configure_euclidean_distance<scalar_type>(), opt).build_unique(matPar);
 			nn_parAll = knncolle::find_nearest_neighbors_custom<integer_type, scalar_type, scalar_type>(*searcherParAll, numNeighbors, numThreads);
 			printDuration(timer.getElapsedMicroseconds());
 		}
@@ -368,7 +370,7 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 		{
 			timer.start();
 			info("Search parallel: addition and query");
-			auto searcherParAll = KnnHnswPar(knncolle_hnsw::configure_euclidean_distance<scalar_type>(), opt).build_unique(mat);
+			auto searcherParAll = KnnHnswPar(knncolle_hnsw::configure_euclidean_distance<scalar_type>(), opt).build_unique(matPar);
 			nn_parAll = knncolle::find_nearest_neighbors_custom<integer_type, scalar_type, scalar_type>(*searcherParAll, numNeighbors, numThreads);
 			printDuration(timer.getElapsedMicroseconds());
 		}
