@@ -46,7 +46,7 @@ class UMAPWorker : public QObject
     Q_OBJECT
 
 public:
-    UMAPWorker(Dataset<Points> inputPoints, DatasetTask* parentTask, const int outDim, SettingsAction* settings, KnnSettingsAction* knnSettings, AdvancedSettingsAction* advSettings);
+    UMAPWorker(const Dataset<Points>& inputPoints, DatasetTask* parentTask, const int outDim, SettingsAction* settings, KnnSettingsAction* knnSettings, AdvancedSettingsAction* advSettings);
 
 public: // Setter
     void changeThread(QThread* targetThread);
@@ -119,7 +119,7 @@ private:
     KnnSettingsAction           _knnSettingsAction;         /** knn settings */
     AdvancedSettingsAction      _advSettingsAction;         /** Advanced settings */
 
-    int                         _numPoints;                 /** Number of data points */
+    std::uint64_t               _numPoints;                 /** Number of data points */
     int                         _outDimensions;             /** The number of dimensions to reduce to */
     Dataset<Points>             _outputPoints;
     

@@ -200,7 +200,7 @@ namespace knncolle_hnsw {
                 const auto& top = my_queue.top();
                 --position;
                 if (output_indices) {
-                    (*output_indices)[position] = top.second;
+                    (*output_indices)[position] = static_cast<Index_>(top.second);
                 }
                 if (output_distances) {
                     (*output_distances)[position] = top.first;

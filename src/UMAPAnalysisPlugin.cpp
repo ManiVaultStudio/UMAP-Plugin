@@ -146,9 +146,9 @@ void UMAPAnalysisPlugin::deleteWorker()
 
 void UMAPAnalysisPlugin::init()
 {
-    auto initEmbeddingsAndDimensions = [this](uint32_t numPoints) {
+    auto initEmbeddingsAndDimensions = [this](const std::uint64_t numPoints) {
         std::vector<scalar_t> initEmbeddingValues;
-        initEmbeddingValues.resize(numPoints * static_cast<size_t>(_outDimensions));
+        initEmbeddingValues.resize(numPoints * _outDimensions);
 
         _outputPoints->setData(initEmbeddingValues.data(), initEmbeddingValues.size() / _outDimensions, _outDimensions);
         events().notifyDatasetDataChanged(_outputPoints);
@@ -283,8 +283,8 @@ QVariantMap UMAPAnalysisPlugin::toVariantMap() const
 // Worker
 // =============================================================================
 
-UMAPWorker::UMAPWorker(Dataset<Points> inputPoints, DatasetTask* parentTask, const int outDim, SettingsAction* settings, KnnSettingsAction* knnSettings, AdvancedSettingsAction* advSettings):
-    _inputDataset(std::move(inputPoints)),
+UMAPWorker::UMAPWorker(const Dataset<Points>& inputPoints, DatasetTask* parentTask, const int outDim, SettingsAction* settings, KnnSettingsAction* knnSettings, AdvancedSettingsAction* advSettings):
+    _inputDataset(inputPoints),
     _settingsAction(settings),
     _knnSettingsAction(knnSettings),
     _advSettingsAction(advSettings),
@@ -294,7 +294,7 @@ UMAPWorker::UMAPWorker(Dataset<Points> inputPoints, DatasetTask* parentTask, con
     _outEmbedding(),
     _outDimensions(outDim)
 {
-    _embedding.resize(inputPoints->getNumPoints() * static_cast<size_t>(_outDimensions));
+    _embedding.resize(_inputDataset->getNumPoints() * static_cast<size_t>(_outDimensions));
 
     connect(_parentTask, &DatasetTask::requestAbort, this, &UMAPWorker::stop, Qt::DirectConnection);
 }
@@ -376,6 +376,7 @@ void UMAPWorker::compute()
             case KnnMetric::COSINE:     searcher = KnnAnnoyAngular(opt).build_unique(mat); break;
             case KnnMetric::DOT:        searcher = KnnAnnoyDot(opt).build_unique(mat); break;
             case KnnMetric::EUCLIDEAN:  searcher = KnnAnnoyEuclidean(opt).build_unique(mat); break;
+            case KnnMetric::CORRELATION:  [[fallthrough]];
             default:
                 qDebug() << "UMAP: unknown metric using euclidean";
                 searcher = KnnAnnoyEuclidean(opt).build_unique(mat); break;

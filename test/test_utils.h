@@ -18,7 +18,7 @@ namespace testing {
 	/// /////// ///
 
 	// Test helper that compares two values with tolerance
-	void expectNear(float expected, float actual, float tolerance = 1e-5f,
+	inline void expectNear(const float expected, const float actual, const float tolerance = 1e-5f,
 		const std::string& test_name = "") {
 		if (std::fabs(expected - actual) > tolerance) {
 			std::cerr << "Test failed: " << test_name
@@ -28,6 +28,10 @@ namespace testing {
 				<< "\n  Tolerance: " << tolerance << std::endl;
 		}
 		CHECK(expected == Catch::Approx(actual).margin(tolerance));
+	}
+
+	inline bool nearlyEqual(const float a, const float b, const float epsilon = 1e-9) {
+		return std::fabs(a - b) < epsilon;
 	}
 
 	/// ///////////// ///
@@ -43,7 +47,7 @@ namespace testing {
 		}
 
 		// Helper function to generate random vector
-		std::vector<scalar> randomVector(size_t dim) {
+		std::vector<scalar> randomVector(const size_t dim) {
 			std::vector<scalar> vec(dim);
 			for (size_t i = 0; i < dim; i++) {
 				vec[i] = dist(gen);
@@ -52,17 +56,17 @@ namespace testing {
 		}
 
 		// Helper function to generate random matrix
-		std::vector<scalar> randomMatrix(size_t dim, size_t numPoints) {
+		std::vector<scalar> randomMatrix(const size_t dim, const size_t numPoints) {
 			return randomVector(dim * numPoints);
 		}
 
 		// Helper function to generate constant vector
-		std::vector<scalar> constantVector(size_t dim, scalar value) {
+		std::vector<scalar> constantVector(const size_t dim, const scalar value) {
 			return std::vector<scalar>(dim, value);
 		}
 
 		// Helper function to generate linearly increasing vector
-		std::vector<scalar> linearVector(size_t dim, scalar start = 0.0f, scalar step = 1.0f) {
+		std::vector<scalar> linearVector(const size_t dim, const scalar start = 0.0f, const scalar step = 1.0f) {
 			std::vector<scalar> vec(dim);
 			for (size_t i = 0; i < dim; i++) {
 				vec[i] = start + i * step;
@@ -99,11 +103,11 @@ namespace testing {
 		std::cout << std::endl;
 	}
 
-	void info(const std::string& message) {
+	inline void info(const std::string& message) {
 		std::cout << message << std::endl;
 	}
 
-	void printDuration(uint64_t t, const std::string& unit = "ms") {
+	inline void printDuration(const uint64_t t, const std::string& unit = "ms") {
 		std::cout << "Duration: " << t <<  unit << std::endl;
 	}
 

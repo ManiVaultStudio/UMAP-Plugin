@@ -114,6 +114,9 @@ class UMAPPluginConan(ConanFile):
             prefix_path = f"{proc.stdout.decode('UTF-8').strip()}"
             tc.variables["OpenMP_ROOT"] = prefix_path
         
+        # Build tests on CI
+        tc.variables["MV_UMAP_UNIT_TESTS"] = "ON"
+
         tc.generate()
 
     def _configure_cmake(self):
