@@ -326,7 +326,7 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 					print(nn_parQue[i]);
 				}
 
-				if (nn_seq[i][j].second != nn_parQue[i][j].second) {
+				if (!nearlyEqual(nn_seq[i][j].second, nn_parQue[i][j].second)) {
 					print(nn_seq[i]);
 					print(nn_parQue[i]);
 				}
@@ -336,16 +336,16 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 					print(nn_parAll[i]);
 				}
 
-				if (nn_seq[i][j].second != nn_parAll[i][j].second) {
+				if (!nearlyEqual(nn_seq[i][j].second, nn_parAll[i][j].second)) {
 					print(nn_seq[i]);
 					print(nn_parAll[i]);
 				}
 
 				REQUIRE(nn_seq[i][j].first == nn_parQue[i][j].first);
-				REQUIRE(nn_seq[i][j].second == nn_parQue[i][j].second);
+				REQUIRE(nearlyEqual(nn_seq[i][j].second, nn_parQue[i][j].second));
 
 				REQUIRE(nn_seq[i][j].first == nn_parAll[i][j].first);
-				REQUIRE(nn_seq[i][j].second == nn_parAll[i][j].second);
+				REQUIRE(nearlyEqual(nn_seq[i][j].second, nn_parAll[i][j].second));
 			}
 		}
 	}

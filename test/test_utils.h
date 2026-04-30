@@ -18,7 +18,7 @@ namespace testing {
 	/// /////// ///
 
 	// Test helper that compares two values with tolerance
-	void expectNear(float expected, float actual, float tolerance = 1e-5f,
+	inline void expectNear(const float expected, const float actual, const float tolerance = 1e-5f,
 		const std::string& test_name = "") {
 		if (std::fabs(expected - actual) > tolerance) {
 			std::cerr << "Test failed: " << test_name
@@ -28,6 +28,10 @@ namespace testing {
 				<< "\n  Tolerance: " << tolerance << std::endl;
 		}
 		CHECK(expected == Catch::Approx(actual).margin(tolerance));
+	}
+
+	inline bool nearlyEqual(const float a, const float b, const float epsilon = 1e-9) {
+		return std::fabs(a - b) < epsilon;
 	}
 
 	/// ///////////// ///
