@@ -15,21 +15,19 @@
 #include <format>
 #include <thread>
 #include <vector>
-#include <cmath>
 
 using namespace testing;
 
-using integer_type = int32_t;
-using scalar_type = float;
-using KnnDataMatrix = knncolle::ParallelMatrix< /* observation index */ integer_type, /* data type */ scalar_type>;
-using KnnHnsw = knncolle_hnsw::HnswBuilder<integer_type, scalar_type, scalar_type, KnnDataMatrix>;
-using KnnHnswPar = knncolle_hnsw::HnswBuilderParallel<integer_type, scalar_type, scalar_type, KnnDataMatrix>;
-using KnnList = knncolle::NeighborList<integer_type, scalar_type>;
+/// /////////// ///
+/// Definitions ///
+/// //////////  ///
 
-static void testInstructionSets(const float ref, const std::vector<float>& vec1, const std::vector<float>& vec2, const size_t dim) {
-#if defined(USE_SSE)
-	const float test_sse = hnswlib::CorrelationDistanceSIMD4ExtSSE(vec1.data(), vec2.data(), &dim);
-	expectNear(test_sse, ref, 1e-6f, "Reference should be same as SSE results");
+using integer_type  = int32_t;
+using scalar_type   = float;
+using DataMatrix	= knncolle::ParallelMatrix< /* observation index */ integer_type, /* data type */ scalar_type>;
+using KnnHnsw       = knncolle_hnsw::HnswBuilder<integer_type, scalar_type, scalar_type, DataMatrix>;
+using KnnHnswPar    = knncolle_hnsw::HnswBuilderParallel<integer_type, scalar_type, scalar_type, DataMatrix>;
+using KnnList       = knncolle::NeighborList<integer_type, scalar_type>;
 
 /// ////////// ///
 ///   Helper   ///
