@@ -356,8 +356,20 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 
 		constexpr size_t numNeighbors = 100;
 
+		KnnList nn_brut;
 		KnnList nn_seq;
 		KnnList nn_parAll;
+
+		{
+			timer.start();
+			info("Search brute force");
+			auto dist_type = std::make_shared<knncolle::EuclideanDistance<scalar_type, scalar_type> >();
+			std::unique_ptr<knncolle::Builder<integer_type, scalar_type, scalar_type> > ptr;
+			ptr.reset(new knncolle::BruteforceBuilder<integer_type, scalar_type, scalar_type>(dist_type));
+			auto searcherBrut = ptr->build_unique(mat);
+			nn_brut = knncolle::find_nearest_neighbors(*searcherBrut, numNeighbors);
+			printDuration(timer.getElapsedMicroseconds());
+		}
 
 		{
 			timer.start();
@@ -375,24 +387,33 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 			printDuration(timer.getElapsedMicroseconds());
 		}
 
-		float correct = 0;
+		size_t correct_seq = 0;
+		size_t correct_par = 0;
 
+		REQUIRE(nn_brut.size() == numPoints);
 		REQUIRE(nn_seq.size() == numPoints);
 		REQUIRE(nn_parAll.size() == numPoints);
 
 		for (size_t i = 0; i < numPoints; i++) {
+			REQUIRE(nn_brut[i].size() == numNeighbors);
 			REQUIRE(nn_seq[i].size() == numNeighbors);
 			REQUIRE(nn_parAll[i].size() == numNeighbors);
 
 			for (size_t j = 0; j < numNeighbors; j++) {
-				if (nn_seq[i][j].first == nn_parAll[i][j].first &&
-					std::abs(nn_seq[i][j].second - nn_parAll[i][j].second) < 1e-6f) {
-					correct++;
+				if (nn_brut[i][j].first == nn_seq[i][j].first &&
+					std::abs(nn_brut[i][j].second - nn_seq[i][j].second) < 1e-6f) {
+					correct_seq++;
+				}
+				if (nn_brut[i][j].first == nn_parAll[i][j].first &&
+					std::abs(nn_brut[i][j].second - nn_parAll[i][j].second) < 1e-6f) {
+					correct_par++;
 				}
 			}
 		}
 
-		const float recall = correct / (numNeighbors * numPoints);
-		info(std::format("Recall: {}", recall));
+		const auto recall_seq = correct_seq / static_cast<double>(numNeighbors * numPoints);
+		info(std::format("Recall (seq): {}", recall_seq));
+		const auto recall_par = correct_par / static_cast<double>(numNeighbors * numPoints);
+		info(std::format("Recall (par): {}", recall_par));
 	}
 }
