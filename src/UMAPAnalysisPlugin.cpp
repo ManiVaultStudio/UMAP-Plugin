@@ -17,7 +17,6 @@
 #include "util/hnsw_space_corr.h"
 #include "util/knncolle_matrix_parallel.h"
 #include "util/knncolle_hnsw_parallel.h"
-#include "util/knncolle_find_nearest_neighbors.h"
 
 #pragma warning(disable:4267) // umappp internal: conversion warning
 #include <umappp/initialize.hpp>
@@ -68,8 +67,10 @@ namespace
 
         norm = 1.0f / (std::sqrt(norm) + 1e-30f);
 
+        const std::int64_t data_size = static_cast<std::int64_t>(data.size());
+
 #pragma omp parallel
-        for (std::int64_t i = 0; i < data.size(); i++)
+        for (std::int64_t i = 0; i < data_size; i++)
             data[i] *= norm;
     }
 
@@ -350,7 +351,7 @@ void UMAPWorker::compute()
             num_threads_knn = num_threads_available;
         }
 
-        if (num_threads_layout) {
+        if (parallel_layout) {
             num_threads_layout = num_threads_available;
         }
     }
@@ -422,7 +423,7 @@ void UMAPWorker::compute()
         }
 
         qDebug() << "UMAP: querying knn in searcher: " << numNeighbors << " neighbors";
-        nearestNeighbors = knncolle::find_nearest_neighbors_custom<integer_t, scalar_t, scalar_t>(*searcher, numNeighbors, num_threads_knn);
+        nearestNeighbors = knncolle::find_nearest_neighbors<integer_t, scalar_t, scalar_t>(*searcher, numNeighbors, num_threads_knn);
         qDebug() << "UMAP: finished knn";
 
     }
@@ -478,7 +479,8 @@ void UMAPWorker::compute()
     opt.initialize_seed      = advancedSettings.seed;
 
     if (parallel_layout) {
-        opt.parallel_optimization   = true;
+        opt.num_threads_optimize    = num_threads_layout;
+        opt.num_threads_spectral    = num_threads_layout;
         opt.num_threads             = num_threads_layout;
     }
 

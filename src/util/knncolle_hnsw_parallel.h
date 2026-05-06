@@ -7,84 +7,14 @@
 #include <atomic>
 #include <thread>
 #include <type_traits>
-#include <mutex>
 #include <vector>
-#include <exception>
 #include <queue>
 #include <utility>
-
-/*
-* Source: https://github.com/nmslib/nmslib/blob/v2.1.1/similarity_search/include/thread_pool.h#L62
-* Apache License Version 2.0, Main developers: Bilegsaikhan Naidan, Leonid Boytsov, Yury Malkov, Ben Frederickson, David Novak
-*/
-namespace hnswlib {
-    /*
-    * replacement for the openmp '#pragma omp parallel for' directive
-    * only handles a subset of functionality (no reductions etc)
-    * Process ids from start (inclusive) to end (EXCLUSIVE)
-    */
-    template<class Function>
-    inline void ParallelFor(size_t start, size_t end, size_t numThreads, Function fn) {
-        if (numThreads <= 0) {
-            numThreads = std::thread::hardware_concurrency();
-        }
-
-        if (numThreads == 1) {
-            for (size_t id = start; id < end; id++) {
-                fn(id, 0);
-            }
-        }
-        else {
-            std::vector<std::thread> threads;
-            std::atomic<size_t> current(start);
-
-            // keep track of exceptions in threads
-            // https://stackoverflow.com/a/32428427/1713196
-            std::exception_ptr lastException = nullptr;
-            std::mutex lastExceptMutex;
-
-            for (size_t threadId = 0; threadId < numThreads; ++threadId) {
-                threads.push_back(std::thread([&, threadId] {
-                    while (true) {
-                        size_t id = current.fetch_add(1);
-
-                        if ((id >= end)) {
-                            break;
-                        }
-
-                        try {
-                            fn(id, threadId);
-                        }
-                        catch (...) {
-                            std::unique_lock<std::mutex> lastExcepLock(lastExceptMutex);
-                            lastException = std::current_exception();
-                            /*
-                             * This will work even when current is the largest value that
-                             * size_t can fit, because fetch_add returns the previous value
-                             * before the increment (what will result in overflow
-                             * and produce 0 instead of current + 1).
-                             */
-                            current = end;
-                            break;
-                        }
-                    }
-                    }));
-            }
-            for (auto& thread : threads) {
-                thread.join();
-            }
-            if (lastException) {
-                std::rethrow_exception(lastException);
-            }
-        }
-    }
-
-} // namespace hnswlib
-
 
 /**
     * Source: https://github.com/knncolle/knncolle_hnsw/blob/v0.2.1/include/knncolle_hnsw/knncolle_hnsw.hpp
     * MIT License, Main developer: Aaron Lun
+    * Changes: parallelize adding points to hnsw search index
 */
 namespace knncolle_hnsw {
 
@@ -284,10 +214,11 @@ namespace knncolle_hnsw {
                     auto ptr = work_par->get(0);
                     my_index.addPoint(ptr, 0);
                     const unsigned num_threads = std::thread::hardware_concurrency();
-                    hnswlib::ParallelFor(1, my_obs, num_threads, [&](size_t i, size_t threadId) {
+#pragma omp parallel for num_threads(num_threads) schedule(dynamic, 1)
+                    for (Index_ i = 0; i < my_obs; ++i) {
                         auto ptr = work_par->get(i);
                         my_index.addPoint(ptr, i);
-                        });
+                    }
                 }
 
             }
@@ -307,12 +238,13 @@ namespace knncolle_hnsw {
                     std::copy_n(ptr, my_dim, incoming.begin());
                     my_index.addPoint(incoming.data(), 0);
                     const unsigned num_threads = std::thread::hardware_concurrency();
-                    hnswlib::ParallelFor(1, my_obs, num_threads, [&](size_t i, size_t threadId) {
+#pragma omp parallel for num_threads(num_threads) schedule(dynamic, 1)
+                    for (Index_ i = 0; i < my_obs; ++i) {
                         std::vector<HnswData_> incoming(my_dim);
                         auto ptr = work_par->get(i);
                         std::copy_n(ptr, my_dim, incoming.begin());
                         my_index.addPoint(incoming.data(), i);
-                        });
+                    }
                 }
 
             }

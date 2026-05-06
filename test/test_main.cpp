@@ -7,7 +7,6 @@
 #include "util/hnsw_space_corr.h"
 #include "util/knncolle_matrix_parallel.h"
 #include "util/knncolle_hnsw_parallel.h"
-#include "util/knncolle_find_nearest_neighbors.h"
 
 #include "test_utils.h"
 
@@ -288,7 +287,7 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 			timer.start();
 			info("Search sequential");
 			auto searcherSeq = KnnHnsw(knncolle_hnsw::configure_euclidean_distance<scalar_type>(), opt).build_unique(mat);
-			nn_seq = knncolle::find_nearest_neighbors_custom<integer_type, scalar_type, scalar_type>(*searcherSeq, numNeighbors, 1);
+			nn_seq = knncolle::find_nearest_neighbors<integer_type, scalar_type, scalar_type>(*searcherSeq, numNeighbors, 1);
 			printDuration(timer.getElapsedMicroseconds());
 		}
 
@@ -296,7 +295,7 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 			timer.start();
 			info("Search parallel: query");
 			auto searcherParQue = KnnHnsw(knncolle_hnsw::configure_euclidean_distance<scalar_type>(), opt).build_unique(mat);
-			nn_parQue = knncolle::find_nearest_neighbors_custom<integer_type, scalar_type, scalar_type>(*searcherParQue, numNeighbors, numThreads);
+			nn_parQue = knncolle::find_nearest_neighbors<integer_type, scalar_type, scalar_type>(*searcherParQue, numNeighbors, numThreads);
 			printDuration(timer.getElapsedMicroseconds());
 		}
 
@@ -304,7 +303,7 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 			timer.start();
 			info("Search parallel: addition and query");
 			auto searcherParAll = KnnHnswPar(knncolle_hnsw::configure_euclidean_distance<scalar_type>(), opt).build_unique(matPar);
-			nn_parAll = knncolle::find_nearest_neighbors_custom<integer_type, scalar_type, scalar_type>(*searcherParAll, numNeighbors, numThreads);
+			nn_parAll = knncolle::find_nearest_neighbors<integer_type, scalar_type, scalar_type>(*searcherParAll, numNeighbors, numThreads);
 			printDuration(timer.getElapsedMicroseconds());
 		}
 
@@ -357,6 +356,7 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 		constexpr size_t numNeighbors = 100;
 
 		KnnList nn_brut;
+		KnnList nn_brut2;
 		KnnList nn_seq;
 		KnnList nn_parAll;
 
@@ -373,9 +373,34 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 
 		{
 			timer.start();
+			info("Search brute force 2");
+
+			std::vector<scalar_type> all_distances;
+			std::vector<integer_type> all_indices;
+			exact_knn(data, numDim, numNeighbors, all_distances, all_indices);
+
+			nn_brut2.resize(numPoints);
+			for (std::size_t i = 0; i < numPoints; ++i) {
+				auto& row = nn_brut2[i];
+				row.reserve(numNeighbors);
+
+				const std::size_t offset = i * numNeighbors;
+				for (std::size_t j = 0; j < numNeighbors; ++j) {
+					row.emplace_back(
+						all_indices[offset + j],
+						std::sqrt(all_distances[offset + j])
+					);
+				}
+			}
+
+			printDuration(timer.getElapsedMicroseconds());
+		}
+
+		{
+			timer.start();
 			info("Search sequential");
 			auto searcherSeq = KnnHnsw(knncolle_hnsw::configure_euclidean_distance<scalar_type>(), opt).build_unique(mat);
-			nn_seq = knncolle::find_nearest_neighbors_custom<integer_type, scalar_type, scalar_type>(*searcherSeq, numNeighbors, 1);
+			nn_seq = knncolle::find_nearest_neighbors<integer_type, scalar_type, scalar_type>(*searcherSeq, numNeighbors, 1);
 			printDuration(timer.getElapsedMicroseconds());
 		}
 
@@ -383,12 +408,13 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 			timer.start();
 			info("Search parallel: addition and query");
 			auto searcherParAll = KnnHnswPar(knncolle_hnsw::configure_euclidean_distance<scalar_type>(), opt).build_unique(matPar);
-			nn_parAll = knncolle::find_nearest_neighbors_custom<integer_type, scalar_type, scalar_type>(*searcherParAll, numNeighbors, numThreads);
+			nn_parAll = knncolle::find_nearest_neighbors<integer_type, scalar_type, scalar_type>(*searcherParAll, numNeighbors, numThreads);
 			printDuration(timer.getElapsedMicroseconds());
 		}
 
 		size_t correct_seq = 0;
 		size_t correct_par = 0;
+		size_t correct_brut = 0;
 
 		REQUIRE(nn_brut.size() == numPoints);
 		REQUIRE(nn_seq.size() == numPoints);
@@ -408,12 +434,20 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 					std::abs(nn_brut[i][j].second - nn_parAll[i][j].second) < 1e-6f) {
 					correct_par++;
 				}
+				if (nn_brut[i][j].first == nn_brut2[i][j].first &&
+					std::abs(nn_brut[i][j].second - nn_brut2[i][j].second) < 1e-6f) {
+					correct_brut++;
+				}
 			}
 		}
 
-		const auto recall_seq = correct_seq / static_cast<double>(numNeighbors * numPoints);
-		info(std::format("Recall (seq): {}", recall_seq));
-		const auto recall_par = correct_par / static_cast<double>(numNeighbors * numPoints);
-		info(std::format("Recall (par): {}", recall_par));
+		constexpr auto numPointNeighborPairs = static_cast<double>(numNeighbors * numPoints);
+
+		auto printRecall = [numPointNeighborPairs](const std::string& name, const size_t num_correct) {
+				info(std::format("Recall ({}): {}", name, static_cast<double>(num_correct) / numPointNeighborPairs));
+		};
+		printRecall("seq", correct_seq);
+		printRecall("par", correct_par);
+		printRecall("brut", correct_brut);
 	}
 }
