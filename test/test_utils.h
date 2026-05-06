@@ -34,6 +34,57 @@ namespace testing {
 		return std::fabs(a - b) < epsilon;
 	}
 
+
+	template<typename scalar = float>
+	scalar l2_squared(const scalar* a, const scalar* b, size_t dim) {
+		scalar dist = 0.0f;
+		for (size_t i = 0; i < dim; i++) {
+			scalar diff = a[i] - b[i];
+			dist += diff * diff;
+		}
+		return dist;
+	}
+
+	template<typename scalar = float, typename integer = int32_t>
+	void exact_knn(
+		const std::vector<scalar>& data,
+		const size_t dim,
+		const size_t k,
+		std::vector<scalar>& all_distances,   // size n_points * k
+		std::vector<integer>& all_indices)     // size n_points * k
+	{
+		const integer n_points = static_cast<integer>(data.size() / dim);
+		all_distances.resize(n_points * k);
+		all_indices.resize(n_points * k);
+
+		for (integer q = 0; q < n_points; ++q) {
+			const scalar* query_ptr = data.data() + q * dim;
+
+			using Result = std::pair<scalar, integer>;
+			std::priority_queue<Result> heap;
+
+			for (integer i = 0; i < n_points; ++i) {
+				if (i == q) continue;
+				const scalar dist = l2_squared(data.data() + i * dim, query_ptr, dim);
+				if (static_cast<integer>(heap.size()) < k) {
+					heap.emplace(dist, i);
+				}
+				else if (dist < heap.top().first) {
+					heap.pop();
+					heap.emplace(dist, i);
+				}
+			}
+
+			scalar* d_row = all_distances.data() + q * k;
+			integer* i_row = all_indices.data() + q * k;
+			for (size_t i = heap.size(); i-- > 0;) {
+				d_row[i] = heap.top().first;
+				i_row[i] = heap.top().second;
+				heap.pop();
+			}
+		}
+	}
+
 	/// ///////////// ///
 	/// DATA CREATION ///
 	/// ///////////// ///

@@ -357,6 +357,7 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 		constexpr size_t numNeighbors = 100;
 
 		KnnList nn_brut;
+		KnnList nn_brut2;
 		KnnList nn_seq;
 		KnnList nn_parAll;
 
@@ -368,6 +369,31 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 			ptr.reset(new knncolle::BruteforceBuilder<integer_type, scalar_type, scalar_type>(dist_type));
 			auto searcherBrut = ptr->build_unique(mat);
 			nn_brut = knncolle::find_nearest_neighbors(*searcherBrut, numNeighbors);
+			printDuration(timer.getElapsedMicroseconds());
+		}
+
+		{
+			timer.start();
+			info("Search brute force 2");
+
+			std::vector<scalar_type> all_distances;
+			std::vector<integer_type> all_indices;
+			exact_knn(data, numDim, numNeighbors, all_distances, all_indices);
+
+			nn_brut2.resize(numPoints);
+			for (std::size_t i = 0; i < numPoints; ++i) {
+				auto& row = nn_brut2[i];
+				row.reserve(numNeighbors);
+
+				const std::size_t offset = i * numNeighbors;
+				for (std::size_t j = 0; j < numNeighbors; ++j) {
+					row.emplace_back(
+						all_indices[offset + j],
+						std::sqrt(all_distances[offset + j])
+					);
+				}
+			}
+
 			printDuration(timer.getElapsedMicroseconds());
 		}
 
@@ -389,6 +415,7 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 
 		size_t correct_seq = 0;
 		size_t correct_par = 0;
+		size_t correct_brut = 0;
 
 		REQUIRE(nn_brut.size() == numPoints);
 		REQUIRE(nn_seq.size() == numPoints);
@@ -408,6 +435,10 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 					std::abs(nn_brut[i][j].second - nn_parAll[i][j].second) < 1e-6f) {
 					correct_par++;
 				}
+				if (nn_brut[i][j].first == nn_brut2[i][j].first &&
+					std::abs(nn_brut[i][j].second - nn_brut2[i][j].second) < 1e-6f) {
+					correct_brut++;
+				}
 			}
 		}
 
@@ -415,5 +446,7 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 		info(std::format("Recall (seq): {}", recall_seq));
 		const auto recall_par = correct_par / static_cast<double>(numNeighbors * numPoints);
 		info(std::format("Recall (par): {}", recall_par));
+		const auto recall_brut = correct_brut / static_cast<double>(numNeighbors * numPoints);
+		info(std::format("Recall (brut): {}", recall_brut));
 	}
 }
