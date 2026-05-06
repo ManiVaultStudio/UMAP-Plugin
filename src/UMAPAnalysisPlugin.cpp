@@ -478,7 +478,8 @@ void UMAPWorker::compute()
     opt.initialize_seed      = advancedSettings.seed;
 
     if (parallel_layout) {
-        opt.parallel_optimization   = true;
+        opt.num_threads_optimize    = num_threads_layout;
+        opt.num_threads_spectral    = num_threads_layout;
         opt.num_threads             = num_threads_layout;
     }
 

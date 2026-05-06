@@ -17,8 +17,8 @@ if(NOT libscran_umappp_FOUND AND NOT TARGET libscran::umappp)
     fetch_content_url(subpar "https://github.com/LTLA/subpar/archive/refs/tags/v0.5.0.zip")
     fetch_content_url(sanisizer "https://github.com/LTLA/sanisizer/archive/refs/tags/v0.2.2.zip")
     fetch_cpm_repo_patch(knncolle "https://github.com/knncolle/knncolle.git" v3.1.0 "knncolle.patch") # depends on subpar
-    fetch_cpm_repo_patch(irlba "https://github.com/LTLA/CppIrlba.git" v3.0.1 "irlba.patch") # depends on eigen, aarand and subpar
-    fetch_cpm_repo_patch(umappp "https://github.com/libscran/umappp.git" v3.2.0 "umappp.patch") # depends on aarand, subpar, CppIrlba and knnolle
+    fetch_cpm_repo_patch(irlba "https://github.com/LTLA/CppIrlba.git" v3.1.0 "irlba.patch") # depends on eigen, aarand and subpar
+    fetch_cpm_repo_patch(umappp "https://github.com/libscran/umappp.git" v3.3.2 "umappp.patch") # depends on aarand, subpar, CppIrlba and knnolle
 else()
     message(STATUS "UMAPAnalysisPlugin: Using external Umappp")
 endif()
