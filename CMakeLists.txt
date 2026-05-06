@@ -85,7 +85,6 @@ set(UMAPANALYSIS_DISTANCES
     src/util/hnsw_space_corr.h
     src/util/knncolle_matrix_parallel.h
     src/util/knncolle_hnsw_parallel.h
-    src/util/knncolle_find_nearest_neighbors.h
 )
 
 set(UMAPANALYSIS_AUX
