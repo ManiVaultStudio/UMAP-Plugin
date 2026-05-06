@@ -68,8 +68,10 @@ namespace
 
         norm = 1.0f / (std::sqrt(norm) + 1e-30f);
 
+        const std::int64_t data_size = static_cast<std::int64_t>(data.size());
+
 #pragma omp parallel
-        for (std::int64_t i = 0; i < data.size(); i++)
+        for (std::int64_t i = 0; i < data_size; i++)
             data[i] *= norm;
     }
 
