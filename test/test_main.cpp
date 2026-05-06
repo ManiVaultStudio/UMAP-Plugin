@@ -7,7 +7,6 @@
 #include "util/hnsw_space_corr.h"
 #include "util/knncolle_matrix_parallel.h"
 #include "util/knncolle_hnsw_parallel.h"
-#include "util/knncolle_find_nearest_neighbors.h"
 
 #include "test_utils.h"
 
@@ -288,7 +287,7 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 			timer.start();
 			info("Search sequential");
 			auto searcherSeq = KnnHnsw(knncolle_hnsw::configure_euclidean_distance<scalar_type>(), opt).build_unique(mat);
-			nn_seq = knncolle::find_nearest_neighbors_custom<integer_type, scalar_type, scalar_type>(*searcherSeq, numNeighbors, 1);
+			nn_seq = knncolle::find_nearest_neighbors<integer_type, scalar_type, scalar_type>(*searcherSeq, numNeighbors, 1);
 			printDuration(timer.getElapsedMicroseconds());
 		}
 
@@ -296,7 +295,7 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 			timer.start();
 			info("Search parallel: query");
 			auto searcherParQue = KnnHnsw(knncolle_hnsw::configure_euclidean_distance<scalar_type>(), opt).build_unique(mat);
-			nn_parQue = knncolle::find_nearest_neighbors_custom<integer_type, scalar_type, scalar_type>(*searcherParQue, numNeighbors, numThreads);
+			nn_parQue = knncolle::find_nearest_neighbors<integer_type, scalar_type, scalar_type>(*searcherParQue, numNeighbors, numThreads);
 			printDuration(timer.getElapsedMicroseconds());
 		}
 
@@ -304,7 +303,7 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 			timer.start();
 			info("Search parallel: addition and query");
 			auto searcherParAll = KnnHnswPar(knncolle_hnsw::configure_euclidean_distance<scalar_type>(), opt).build_unique(matPar);
-			nn_parAll = knncolle::find_nearest_neighbors_custom<integer_type, scalar_type, scalar_type>(*searcherParAll, numNeighbors, numThreads);
+			nn_parAll = knncolle::find_nearest_neighbors<integer_type, scalar_type, scalar_type>(*searcherParAll, numNeighbors, numThreads);
 			printDuration(timer.getElapsedMicroseconds());
 		}
 
@@ -401,7 +400,7 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 			timer.start();
 			info("Search sequential");
 			auto searcherSeq = KnnHnsw(knncolle_hnsw::configure_euclidean_distance<scalar_type>(), opt).build_unique(mat);
-			nn_seq = knncolle::find_nearest_neighbors_custom<integer_type, scalar_type, scalar_type>(*searcherSeq, numNeighbors, 1);
+			nn_seq = knncolle::find_nearest_neighbors<integer_type, scalar_type, scalar_type>(*searcherSeq, numNeighbors, 1);
 			printDuration(timer.getElapsedMicroseconds());
 		}
 
@@ -409,7 +408,7 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 			timer.start();
 			info("Search parallel: addition and query");
 			auto searcherParAll = KnnHnswPar(knncolle_hnsw::configure_euclidean_distance<scalar_type>(), opt).build_unique(matPar);
-			nn_parAll = knncolle::find_nearest_neighbors_custom<integer_type, scalar_type, scalar_type>(*searcherParAll, numNeighbors, numThreads);
+			nn_parAll = knncolle::find_nearest_neighbors<integer_type, scalar_type, scalar_type>(*searcherParAll, numNeighbors, numThreads);
 			printDuration(timer.getElapsedMicroseconds());
 		}
 
