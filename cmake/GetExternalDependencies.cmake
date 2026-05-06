@@ -37,7 +37,7 @@ endif()
 
 find_package(knncolle_knncolle_hnsw CONFIG QUIET)
 if(NOT knncolle_knncolle_hnsw_FOUND AND NOT TARGET knncolle::knncolle_hnsw)
-    fetch_cpm_repo_patch(knncolle_hnsw "https://github.com/knncolle/knncolle_hnsw.git" v0.3.0 "knncolle_hnsw.patch")
+    fetch_cpm_repo_patch(knncolle_hnsw "https://github.com/knncolle/knncolle_hnsw.git" v0.3.2 "knncolle_hnsw.patch")
 endif()
 
 find_package(Annoy CONFIG QUIET)
