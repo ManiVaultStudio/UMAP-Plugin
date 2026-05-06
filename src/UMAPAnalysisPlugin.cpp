@@ -17,7 +17,6 @@
 #include "util/hnsw_space_corr.h"
 #include "util/knncolle_matrix_parallel.h"
 #include "util/knncolle_hnsw_parallel.h"
-#include "util/knncolle_find_nearest_neighbors.h"
 
 #pragma warning(disable:4267) // umappp internal: conversion warning
 #include <umappp/initialize.hpp>
@@ -424,7 +423,7 @@ void UMAPWorker::compute()
         }
 
         qDebug() << "UMAP: querying knn in searcher: " << numNeighbors << " neighbors";
-        nearestNeighbors = knncolle::find_nearest_neighbors_custom<integer_t, scalar_t, scalar_t>(*searcher, numNeighbors, num_threads_knn);
+        nearestNeighbors = knncolle::find_nearest_neighbors<integer_t, scalar_t, scalar_t>(*searcher, numNeighbors, num_threads_knn);
         qDebug() << "UMAP: finished knn";
 
     }
