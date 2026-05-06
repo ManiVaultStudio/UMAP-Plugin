@@ -14,6 +14,7 @@
 /**
     * Source: https://github.com/knncolle/knncolle_hnsw/blob/v0.2.1/include/knncolle_hnsw/knncolle_hnsw.hpp
     * MIT License, Main developer: Aaron Lun
+    * Changes: parallelize adding points to hnsw search index
 */
 namespace knncolle_hnsw {
 
