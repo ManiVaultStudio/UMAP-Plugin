@@ -350,7 +350,7 @@ void UMAPWorker::compute()
             num_threads_knn = num_threads_available;
         }
 
-        if (num_threads_layout) {
+        if (parallel_layout) {
             num_threads_layout = num_threads_available;
         }
     }
