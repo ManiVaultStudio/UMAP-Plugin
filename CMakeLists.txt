@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.22)
 option(MV_UMAP_USE_OPENMP "Use OpenMP - by default ON" ON)
 option(MV_UMAP_USE_AVX "Use AVX if available - by default OFF" OFF)
 option(MV_UMAP_UNIT_TESTS "Create unit tests - by default OFF" OFF)
+option(MV_UNITY_BUILD "Combine target source files into batches for faster compilation" OFF)
 
 # Set DOWNLOAD_EXTRACT_TIMESTAMP option to the time of the extraction, added in 3.24
 if(POLICY CMP0135)
@@ -21,7 +22,6 @@ PROJECT(${UMAPANALYSIS}
 # CMake Options
 # -----------------------------------------------------------------------------
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-set(CMAKE_AUTOMOC ON)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /DWIN32 /EHsc /MP /permissive- /Zc:__cplusplus")
@@ -122,6 +122,11 @@ target_include_directories(${UMAPANALYSIS} PRIVATE "${${CMAKE_CURRENT_SOURCE_DIR
 # -----------------------------------------------------------------------------
 # Request C++20
 target_compile_features(${UMAPANALYSIS} PRIVATE cxx_std_20)
+
+set_target_properties(${UMAPANALYSIS} PROPERTIES 
+    AUTOMOC ON
+    UNITY_BUILD ${MV_UNITY_BUILD}
+)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(${UMAPANALYSIS} PRIVATE /bigobj)    # for Eigen
