@@ -441,11 +441,13 @@ TEST_CASE("Parallel HNSW", "[DIST][KNN]") {
 			}
 		}
 
-		const auto recall_seq = correct_seq / static_cast<double>(numNeighbors * numPoints);
-		info(std::format("Recall (seq): {}", recall_seq));
-		const auto recall_par = correct_par / static_cast<double>(numNeighbors * numPoints);
-		info(std::format("Recall (par): {}", recall_par));
-		const auto recall_brut = correct_brut / static_cast<double>(numNeighbors * numPoints);
-		info(std::format("Recall (brut): {}", recall_brut));
+		constexpr auto numPointNeighborPairs = static_cast<double>(numNeighbors * numPoints);
+
+		auto printRecall = [numPointNeighborPairs](const std::string& name, const size_t num_correct) {
+				info(std::format("Recall ({}): {}", name, static_cast<double>(num_correct) / numPointNeighborPairs));
+		};
+		printRecall("seq", correct_seq);
+		printRecall("par", correct_par);
+		printRecall("brut", correct_brut);
 	}
 }
