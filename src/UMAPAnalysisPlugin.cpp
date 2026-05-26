@@ -540,7 +540,7 @@ void UMAPWorker::compute()
 
 UMAPAnalysisPluginFactory::UMAPAnalysisPluginFactory()
 {
-    setIcon(StyledIcon(createPluginIcon("UMAP")));
+    setIcon(mv::util::StyledIcon(createPluginIcon("UMAP")));
 
     connect(&getPluginMetadata().getTriggerHelpAction(), &TriggerAction::triggered, this, [this]() -> void {
         if (!getReadmeMarkdownUrl().isValid() || _helpMarkdownDialog.get())
