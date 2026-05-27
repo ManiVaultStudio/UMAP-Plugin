@@ -17,8 +17,12 @@ include(FetchContent)
 FetchContent_Declare(
     Catch2
     GIT_REPOSITORY https://github.com/catchorg/Catch2
-    GIT_TAG v3.14.0
+    GIT_TAG v3.15.0
     GIT_SHALLOW TRUE
+    EXCLUDE_FROM_ALL ON
+    OPTIONS 
+        "CATCH_INSTALL_DOCS ON" 
+        "CATCH_INSTALL_EXTRAS OFF" 
 )
 FetchContent_MakeAvailable(Catch2)
 
