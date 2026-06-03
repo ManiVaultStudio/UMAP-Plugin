@@ -21,7 +21,7 @@ FetchContent_Declare(
     GIT_SHALLOW TRUE
     EXCLUDE_FROM_ALL ON
     OPTIONS 
-        "CATCH_INSTALL_DOCS ON" 
+        "CATCH_INSTALL_DOCS OFF" 
         "CATCH_INSTALL_EXTRAS OFF" 
 )
 FetchContent_MakeAvailable(Catch2)
