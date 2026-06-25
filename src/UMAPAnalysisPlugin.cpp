@@ -2,6 +2,7 @@
 
 #include <widgets/MarkdownDialog.h>
 #include <util/Icon.h>
+#include <util/Serialization.h>
 
 #include <PointData/DimensionsPickerAction.h>
 #include <PointData/InfoAction.h>
