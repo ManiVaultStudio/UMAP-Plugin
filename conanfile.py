@@ -107,7 +107,7 @@ class UMAPPluginConan(ConanFile):
         tc.variables["ManiVault_DIR"] = manivault_dir
 
         # Set some build options
-        tc.variables["MV_UNITY_BUILD"] = "ON"
+        tc.cache_variables["MV_UNITY_BUILD"] = "ON"
         
         if os_info.is_macos:
             proc = subprocess.run("brew --prefix libomp", shell=True, capture_output=True)
@@ -115,7 +115,7 @@ class UMAPPluginConan(ConanFile):
             tc.variables["OpenMP_ROOT"] = prefix_path
         
         # Build tests on CI
-        tc.variables["MV_UMAP_UNIT_TESTS"] = "ON"
+        tc.cache_variables["MV_UMAP_UNIT_TESTS"] = "ON"
 
         tc.generate()
 
