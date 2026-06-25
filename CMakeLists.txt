@@ -16,7 +16,7 @@ endif()
 set(UMAPANALYSIS "UMAPAnalysisPlugin")
 PROJECT(${UMAPANALYSIS} 
         DESCRIPTION "A ManiVault plugin that wraps LTLA/umappp"
-        LANGUAGES CXX)
+        LANGUAGES CXX C)
 
 # -----------------------------------------------------------------------------
 # CMake Options
