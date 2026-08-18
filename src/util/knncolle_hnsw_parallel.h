@@ -7,84 +7,14 @@
 #include <atomic>
 #include <thread>
 #include <type_traits>
-#include <mutex>
 #include <vector>
-#include <exception>
 #include <queue>
 #include <utility>
-
-/*
-* Source: https://github.com/nmslib/nmslib/blob/v2.1.1/similarity_search/include/thread_pool.h#L62
-* Apache License Version 2.0, Main developers: Bilegsaikhan Naidan, Leonid Boytsov, Yury Malkov, Ben Frederickson, David Novak
-*/
-namespace hnswlib {
-    /*
-    * replacement for the openmp '#pragma omp parallel for' directive
-    * only handles a subset of functionality (no reductions etc)
-    * Process ids from start (inclusive) to end (EXCLUSIVE)
-    */
-    template<class Function>
-    inline void ParallelFor(size_t start, size_t end, size_t numThreads, Function fn) {
-        if (numThreads <= 0) {
-            numThreads = std::thread::hardware_concurrency();
-        }
-
-        if (numThreads == 1) {
-            for (size_t id = start; id < end; id++) {
-                fn(id, 0);
-            }
-        }
-        else {
-            std::vector<std::thread> threads;
-            std::atomic<size_t> current(start);
-
-            // keep track of exceptions in threads
-            // https://stackoverflow.com/a/32428427/1713196
-            std::exception_ptr lastException = nullptr;
-            std::mutex lastExceptMutex;
-
-            for (size_t threadId = 0; threadId < numThreads; ++threadId) {
-                threads.push_back(std::thread([&, threadId] {
-                    while (true) {
-                        size_t id = current.fetch_add(1);
-
-                        if ((id >= end)) {
-                            break;
-                        }
-
-                        try {
-                            fn(id, threadId);
-                        }
-                        catch (...) {
-                            std::unique_lock<std::mutex> lastExcepLock(lastExceptMutex);
-                            lastException = std::current_exception();
-                            /*
-                             * This will work even when current is the largest value that
-                             * size_t can fit, because fetch_add returns the previous value
-                             * before the increment (what will result in overflow
-                             * and produce 0 instead of current + 1).
-                             */
-                            current = end;
-                            break;
-                        }
-                    }
-                    }));
-            }
-            for (auto& thread : threads) {
-                thread.join();
-            }
-            if (lastException) {
-                std::rethrow_exception(lastException);
-            }
-        }
-    }
-
-} // namespace hnswlib
-
 
 /**
     * Source: https://github.com/knncolle/knncolle_hnsw/blob/v0.2.1/include/knncolle_hnsw/knncolle_hnsw.hpp
     * MIT License, Main developer: Aaron Lun
+    * Changes: parallelize adding points to hnsw search index
 */
 namespace knncolle_hnsw {
 
@@ -108,7 +38,7 @@ namespace knncolle_hnsw {
 
         std::priority_queue<std::pair<HnswData_, hnswlib::labeltype> > my_queue;
 
-        static constexpr bool same_internal_data = std::is_same<Data_, HnswData_>::value;
+        static constexpr bool same_internal_data = std::is_same_v<Data_, HnswData_>;
         std::vector<HnswData_> my_buffer;
 
     public:
@@ -125,7 +55,7 @@ namespace knncolle_hnsw {
          */
 
     public:
-        void search(Index_ i, Index_ k, std::vector<Index_>* output_indices, std::vector<Distance_>* output_distances) {
+        void search(Index_ i, Index_ k, std::vector<Index_>* output_indices, std::vector<Distance_>* output_distances) override {
             my_buffer = my_parent.my_index.template getDataByLabel<HnswData_>(i);
             Index_ kp1 = k + 1;
             my_queue = my_parent.my_index.searchKnn(my_buffer.data(), kp1); // +1, as it forgets to discard 'self'.
@@ -178,10 +108,8 @@ namespace knncolle_hnsw {
                 }
             }
 
-            if (output_distances && my_parent.my_normalize) {
-                for (auto& d : *output_distances) {
-                    d = my_parent.my_normalize(d);
-                }
+            if (output_distances) {
+                normalize_distances(*output_distances);
             }
         }
 
@@ -202,7 +130,7 @@ namespace knncolle_hnsw {
                 const auto& top = my_queue.top();
                 --position;
                 if (output_indices) {
-                    (*output_indices)[position] = top.second;
+                    (*output_indices)[position] = static_cast<Index_>(top.second);
                 }
                 if (output_distances) {
                     (*output_distances)[position] = top.first;
@@ -210,15 +138,30 @@ namespace knncolle_hnsw {
                 my_queue.pop();
             }
 
-            if (output_distances && my_parent.my_normalize) {
-                for (auto& d : *output_distances) {
-                    d = my_parent.my_normalize(d);
+            if (output_distances) {
+                normalize_distances(*output_distances);
+            }
+        }
+
+        void normalize_distances(std::vector<Distance_>& output_distances) const {
+            switch (my_parent.my_normalize_method) {
+            case DistanceNormalizeMethod::SQRT:
+                for (auto& d : output_distances) {
+                    d = std::sqrt(d);
                 }
+                break;
+            case DistanceNormalizeMethod::CUSTOM:
+                for (auto& d : output_distances) {
+                    d = my_parent.my_custom_normalize(d);
+                }
+                break;
+            case DistanceNormalizeMethod::NONE:
+                break;
             }
         }
 
     public:
-        void search(const Data_* query, Index_ k, std::vector<Index_>* output_indices, std::vector<Distance_>* output_distances) {
+        void search(const Data_* query, Index_ k, std::vector<Index_>* output_indices, std::vector<Distance_>* output_distances) override {
             if constexpr (same_internal_data) {
                 my_queue = my_parent.my_index.searchKnn(query, k);
                 search_raw(query, k, output_indices, output_distances);
@@ -252,13 +195,14 @@ namespace knncolle_hnsw {
             my_dim(data.num_dimensions()),
             my_obs(data.num_observations()),
             my_space(distance_config.create(my_dim)),
-            my_normalize(distance_config.normalize),
+            my_normalize_method(distance_config.normalize_method),
+            my_custom_normalize(distance_config.custom_normalize),
             my_index(my_space.get(), my_obs, options.num_links, options.ef_construction)
         {
             auto work = data.new_extractor();
             auto work_par = dynamic_cast<knncolle::ParallelMatrixExtractor<Data_>*>(work.get());
 
-            if constexpr (std::is_same<Data_, HnswData_>::value) {
+            if constexpr (std::is_same_v<Data_, HnswData_>) {
 
                 if (work_par == nullptr) {
                     for (Index_ i = 0; i < my_obs; ++i) {
@@ -270,10 +214,11 @@ namespace knncolle_hnsw {
                     auto ptr = work_par->get(0);
                     my_index.addPoint(ptr, 0);
                     const unsigned num_threads = std::thread::hardware_concurrency();
-                    hnswlib::ParallelFor(1, my_obs, num_threads, [&](size_t i, size_t threadId) {
+#pragma omp parallel for num_threads(num_threads) schedule(dynamic, 1)
+                    for (Index_ i = 0; i < my_obs; ++i) {
                         auto ptr = work_par->get(i);
                         my_index.addPoint(ptr, i);
-                        });
+                    }
                 }
 
             }
@@ -293,12 +238,13 @@ namespace knncolle_hnsw {
                     std::copy_n(ptr, my_dim, incoming.begin());
                     my_index.addPoint(incoming.data(), 0);
                     const unsigned num_threads = std::thread::hardware_concurrency();
-                    hnswlib::ParallelFor(1, my_obs, num_threads, [&](size_t i, size_t threadId) {
+#pragma omp parallel for num_threads(num_threads) schedule(dynamic, 1)
+                    for (Index_ i = 0; i < my_obs; ++i) {
                         std::vector<HnswData_> incoming(my_dim);
                         auto ptr = work_par->get(i);
                         std::copy_n(ptr, my_dim, incoming.begin());
                         my_index.addPoint(incoming.data(), i);
-                        });
+                    }
                 }
 
             }
@@ -318,24 +264,26 @@ namespace knncolle_hnsw {
         // references to the object in my_index are still valid after copying.
         std::shared_ptr<hnswlib::SpaceInterface<HnswData_> > my_space;
 
-        std::function<HnswData_(HnswData_)> my_normalize;
+        DistanceNormalizeMethod my_normalize_method;
+        std::function<Distance_(Distance_)> my_custom_normalize;
+
         hnswlib::HierarchicalNSW<HnswData_> my_index;
 
         friend class HnswSearcherParallel<Index_, Data_, Distance_, HnswData_>;
 
     public:
-        std::size_t num_dimensions() const {
+        std::size_t num_dimensions() const override {
             return my_dim;
         }
 
-        Index_ num_observations() const {
+        Index_ num_observations() const override {
             return my_obs;
         }
 
         /**
          * Creates a `HnswSearcherParallel` instance.
          */
-        std::unique_ptr<knncolle::Searcher<Index_, Data_, Distance_> > initialize() const {
+        std::unique_ptr<knncolle::Searcher<Index_, Data_, Distance_> > initialize() const override {
             return std::make_unique<HnswSearcherParallel<Index_, Data_, Distance_, HnswData_> >(*this);
         }
     };
@@ -404,7 +352,7 @@ namespace knncolle_hnsw {
         /**
          * Creates a `HnswPrebuiltParallel` instance.
          */
-        knncolle::Prebuilt<Index_, Data_, Distance_>* build_raw(const Matrix_& data) const {
+        knncolle::Prebuilt<Index_, Data_, Distance_>* build_raw(const Matrix_& data) const override {
             return new HnswPrebuiltParallel<Index_, Data_, Distance_, HnswData_>(data, my_distance_config, my_options);
         }
     };

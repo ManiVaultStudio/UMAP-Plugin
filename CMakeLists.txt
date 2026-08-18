@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.22)
 option(MV_UMAP_USE_OPENMP "Use OpenMP - by default ON" ON)
 option(MV_UMAP_USE_AVX "Use AVX if available - by default OFF" OFF)
 option(MV_UMAP_UNIT_TESTS "Create unit tests - by default OFF" OFF)
+option(MV_UNITY_BUILD "Combine target source files into batches for faster compilation" OFF)
 
 # Set DOWNLOAD_EXTRACT_TIMESTAMP option to the time of the extraction, added in 3.24
 if(POLICY CMP0135)
@@ -15,13 +16,12 @@ endif()
 set(UMAPANALYSIS "UMAPAnalysisPlugin")
 PROJECT(${UMAPANALYSIS} 
         DESCRIPTION "A ManiVault plugin that wraps LTLA/umappp"
-        LANGUAGES CXX)
+        LANGUAGES CXX C)
 
 # -----------------------------------------------------------------------------
 # CMake Options
 # -----------------------------------------------------------------------------
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-set(CMAKE_AUTOMOC ON)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /DWIN32 /EHsc /MP /permissive- /Zc:__cplusplus")
@@ -56,40 +56,12 @@ if(MV_UMAP_USE_OPENMP)
     find_package(OpenMP)
 
     if(OpenMP_CXX_FOUND)
-        message(STATUS "Found OpenMP")
+        message(STATUS "UMAPAnalysisPlugin: Found OpenMP")
     endif()
 endif()
 
-find_package(libscran_umappp CONFIG QUIET)
-
-if(NOT libscran_umappp_FOUND AND NOT TARGET libscran::umappp)
-
-    if(NOT eigen_SOURCE_DIR AND NOT TARGET Eigen3::Eigen AND NOT Eigen3_FOUND)
-        set(BUILD_TESTING OFF CACHE BOOL "Enable testing for Eigen" FORCE)
-        set(EIGEN_BUILD_TESTING  OFF CACHE BOOL "Enable creation of Eigen tests." FORCE)
-        set(EIGEN_BUILD_DOC OFF CACHE BOOL "Enable creation of Eigen documentation" FORCE)
-        set(EIGEN_BUILD_DEMOS OFF CACHE BOOL "Toggles the building of the Eigen demos" FORCE)
-        fetch_content_url(eigen "https://gitlab.com/libeigen/eigen/-/archive/5.0.0.tar.gz")
-    endif()
-
-    # the patches enable use to use the local dependency versions
-    fetch_content_url(aarand "https://github.com/LTLA/aarand/archive/refs/tags/v1.1.0.zip")
-    fetch_content_url(subpar "https://github.com/LTLA/subpar/archive/refs/tags/v0.4.1.zip")
-    fetch_content_url(sanisizer "https://github.com/LTLA/sanisizer/archive/refs/tags/v0.1.3.zip")
-    fetch_cpm_repo_patch(knncolle "https://github.com/knncolle/knncolle.git" v3.0.1 "knncolle.patch") # depends on subpar
-    fetch_cpm_repo_patch(irlba "https://github.com/LTLA/CppIrlba.git" v2.0.2 "irlba.patch") # depends on eigen, aarand and subpar
-    fetch_cpm_repo_patch(umappp "https://github.com/libscran/umappp.git" v3.1.0 "umappp.patch") # depends on aarand, subpar, CppIrlba and knnolle
-endif()
-
-find_package(knncolle_knncolle_hnsw CONFIG QUIET)
-if(NOT knncolle_knncolle_hnsw_FOUND AND NOT TARGET knncolle::knncolle_hnsw)
-    fetch_cpm_repo_patch(knncolle_hnsw "https://github.com/knncolle/knncolle_hnsw.git" v0.2.1 "knncolle_hnsw.patch")
-endif()
-
-find_package(knncolle_knncolle_annoy CONFIG QUIET)
-if(NOT knncolle_knncolle_annoy_FOUND AND NOT TARGET knncolle::knncolle_annoy)
-    fetch_cpm_repo_patch(knncolle_annoy "https://github.com/knncolle/knncolle_annoy.git" v0.2.0 "knncolle_annoy.patch")
-endif()
+# check umappp dependencies
+include(GetExternalDependencies)
 
 # -----------------------------------------------------------------------------
 # Source files
@@ -142,14 +114,16 @@ add_library(${UMAPANALYSIS} SHARED ${UMAPANALYSIS_SOURCES} ${UMAPANALYSIS_AUX})
 # Include ManiVault headers, including system data plugins
 target_include_directories(${UMAPANALYSIS} PRIVATE "${ManiVault_INCLUDE_DIR}")
 
-# Inlcude own sources for cross-platform include consitency
-target_include_directories(${UMAPANALYSIS} PRIVATE "${${CMAKE_CURRENT_SOURCE_DIR}/src}")
-
 # -----------------------------------------------------------------------------
 # Target properties
 # -----------------------------------------------------------------------------
 # Request C++20
 target_compile_features(${UMAPANALYSIS} PRIVATE cxx_std_20)
+
+set_target_properties(${UMAPANALYSIS} PROPERTIES 
+    AUTOMOC ON
+    UNITY_BUILD ${MV_UNITY_BUILD}
+)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(${UMAPANALYSIS} PRIVATE /bigobj)    # for Eigen
@@ -172,7 +146,7 @@ target_link_libraries(${UMAPANALYSIS} PRIVATE knncolle::knncolle_annoy)
 target_link_libraries(${UMAPANALYSIS} PRIVATE ManiVault::Core)
 target_link_libraries(${UMAPANALYSIS} PRIVATE ManiVault::PointData)
 
-if(${MV_UMAP_USE_OPENMP} AND OpenMP_CXX_FOUND)
+if(MV_UMAP_USE_OPENMP AND OpenMP_CXX_FOUND)
     target_link_libraries(${UMAPANALYSIS} PRIVATE OpenMP::OpenMP_CXX)
 endif()
 
@@ -207,7 +181,7 @@ endif()
 # -----------------------------------------------------------------------------
 # Unit testing
 # -----------------------------------------------------------------------------
-if(${MV_UMAP_UNIT_TESTS})
-	MESSAGE( STATUS "Build UMAP unit tests")
+if(MV_UMAP_UNIT_TESTS)
+	message(STATUS "Build UMAP unit tests")
 	add_subdirectory("test")
 endif()

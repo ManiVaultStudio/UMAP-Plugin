@@ -7,6 +7,7 @@
 /**
  * Source: https://github.com/knncolle/knncolle/blob/v3.0.1/include/knncolle/Matrix.hpp
  * MIT License, Main developer: Aaron Lun
+ * Changes: add get(std::size_t point) to SimpleMatrixExtractor 
 */
 namespace knncolle {
 

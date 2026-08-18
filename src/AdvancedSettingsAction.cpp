@@ -50,8 +50,8 @@ AdvancedSettingsAction::AdvancedSettingsAction(QObject* parent) :
     _local_connectivity.initialize(0, 10, _advParameters.local_connectivity, 2);
     _bandwidth.initialize(0, 10, _advParameters.bandwidth, 2);
     _mix_ratio.initialize(0, 1, _advParameters.mix_ratio, 2);
-    _spread.initialize(0.01, 10, _advParameters.spread, 2);
-    _min_dist.initialize(0.001, 10, _advParameters.min_dist, 4);
+    _spread.initialize(0.01f, 10, _advParameters.spread, 2);
+    _min_dist.initialize(0.001f, 10, _advParameters.min_dist, 4);
     _a.initialize(0, 10, _advParameters.a, 4);
     _b.initialize(0, 5, _advParameters.b, 4);
     _repulsion_strength.initialize(0, 10, _advParameters.repulsion_strength, 2);
