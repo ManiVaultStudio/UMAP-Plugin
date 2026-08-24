@@ -6,3 +6,9 @@ updates:
       interval: "weekly"
     allow:
       - dependency-type: "production"
+      - dependency-type: "indirect"
+    pull-request-branch-name:
+      separator: "/"
+      prefix: "feature/dependabot"
+    cooldown:
+      default-days: 7
