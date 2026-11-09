@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 
 option(MV_UMAP_USE_OPENMP "Use OpenMP - by default ON" ON)
 option(MV_UMAP_USE_AVX "Use AVX if available - by default OFF" OFF)
-option(MV_UMAP_USE_VCPKG "Use VCPKG to install dependencies - by default ON" OFF)
+option(MV_UMAP_USE_VCPKG "Use VCPKG to install dependencies - by default ON" ON)
 option(MV_UMAP_UNIT_TESTS "Create unit tests - by default OFF" OFF)
 option(MV_UNITY_BUILD "Combine target source files into batches for faster compilation" OFF)
 
