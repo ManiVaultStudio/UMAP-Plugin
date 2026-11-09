@@ -194,6 +194,6 @@ endif()
 # Unit testing
 # -----------------------------------------------------------------------------
 if(MV_UMAP_UNIT_TESTS)
-	message(STATUS "Build UMAP unit tests")
+	message(STATUS "UMAPAnalysisPlugin: Build UMAP unit tests")
 	add_subdirectory("test")
 endif()
