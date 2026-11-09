@@ -1,5 +1,3 @@
-find_package(libscran_umappp CONFIG QUIET)
-
 if(NOT libscran_umappp_FOUND AND NOT TARGET libscran::umappp)
 
     if(NOT eigen_SOURCE_DIR AND NOT TARGET Eigen3::Eigen AND NOT Eigen3_FOUND)
@@ -23,7 +21,6 @@ else()
     message(STATUS "UMAPAnalysisPlugin: Using external Umappp")
 endif()
 
-find_package(hnswlib CONFIG QUIET)
 if(NOT hnswlib_FOUND AND NOT TARGET hnswlib::hnswlib)
     FetchContent_Declare(
         hnswlib 
@@ -35,12 +32,10 @@ else()
     message(STATUS "UMAPAnalysisPlugin: Using external hnswlib")
 endif()
 
-find_package(knncolle_knncolle_hnsw CONFIG QUIET)
 if(NOT knncolle_knncolle_hnsw_FOUND AND NOT TARGET knncolle::knncolle_hnsw)
     fetch_cpm_repo_patch(knncolle_hnsw "https://github.com/knncolle/knncolle_hnsw.git" v0.3.2 "knncolle_hnsw.patch")
 endif()
 
-find_package(Annoy CONFIG QUIET)
 if(NOT Annoy_FOUND AND NOT TARGET Annoy::Annoy)
     FetchContent_Declare(
         Annoy 
@@ -52,7 +47,6 @@ else()
     message(STATUS "UMAPAnalysisPlugin: Using external Annoy")
 endif()
 
-find_package(knncolle_knncolle_annoy CONFIG QUIET)
 if(NOT knncolle_knncolle_annoy_FOUND AND NOT TARGET knncolle::knncolle_annoy)
     fetch_cpm_repo_patch(knncolle_annoy "https://github.com/knncolle/knncolle_annoy.git" v0.3.0 "knncolle_annoy.patch")
 endif()
