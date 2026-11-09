@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 
 option(MV_UMAP_USE_OPENMP "Use OpenMP - by default ON" ON)
 option(MV_UMAP_USE_AVX "Use AVX if available - by default OFF" OFF)
+option(MV_UMAP_USE_VCPKG "Use VCPKG to install dependencies - by default ON" OFF)
 option(MV_UMAP_UNIT_TESTS "Create unit tests - by default OFF" OFF)
 option(MV_UNITY_BUILD "Combine target source files into batches for faster compilation" OFF)
 
@@ -35,19 +36,6 @@ endif()
 set(MV_UMAP_CMAKE_MODULES_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(CMAKE_MODULE_PATH ${MV_UMAP_CMAKE_MODULES_PATH})
 
-# CMake package manager
-include(get_cpm)
-
-# re-applying patches is problematic without CPM_SOURCE_CACHE
-# see https://github.com/cpm-cmake/CPM.cmake/issues/577
-set(CPM_SOURCE_CACHE ${CMAKE_CURRENT_BINARY_DIR}/.cpm-cache)
-
-# wrapper for cmake fetch utils
-include(CMakeFetchUtils)
-
-# cpm managed dependencies
-include(CMakeCPMDependencies)
-
 # -----------------------------------------------------------------------------
 # Dependencies
 # -----------------------------------------------------------------------------
@@ -62,8 +50,29 @@ if(MV_UMAP_USE_OPENMP)
     endif()
 endif()
 
-# check umappp dependencies
-include(GetExternalDependencies)
+if(NOT MV_UMAP_USE_VCPKG)
+    find_package(libscran_umappp CONFIG REQUIRED)
+    find_package(knncolle_knncolle_hnsw CONFIG REQUIRED)
+    find_package(knncolle_knncolle_annoy CONFIG REQUIRED)
+else()
+    message(STATUS "UMAPAnalysisPlugin: Use CPM to gather dependencies")
+
+    # CMake package manager
+    include(get_cpm)
+
+    # re-applying patches is problematic without CPM_SOURCE_CACHE
+    # see https://github.com/cpm-cmake/CPM.cmake/issues/577
+    set(CPM_SOURCE_CACHE ${CMAKE_CURRENT_BINARY_DIR}/.cpm-cache)
+
+    # wrapper for cmake fetch utils
+    include(CMakeFetchUtils)
+
+    # cpm managed dependencies
+    include(CMakeCPMDependencies)
+
+    # get umappp dependencies
+    include(GetExternalDependencies)
+endif()
 
 # -----------------------------------------------------------------------------
 # Source files

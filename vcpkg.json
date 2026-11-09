@@ -1,0 +1,59 @@
+{
+  "name": "umappplugin",
+  "version": "1.4.0",
+  "description": "ManiVault plugin for UMAP",
+  "builtin-baseline": "29718cfec805208b4e2d80ed91e681143b488dd7",
+  "dependencies": [
+    "eigen3",
+    "knncolle",
+    "knncolle-annoy",
+    "knncolle-hnsw",
+    "libscran-umappp"
+  ],
+  "overrides": [
+    {
+        "name": "annoy",
+        "version": "1.17.3#0"
+    },
+    {
+        "name": "eigen3",
+        "version": "5.0.1#0"
+    },
+    {
+        "name": "hnswlib",
+        "version": "0.9.0#0"
+    },
+    {
+        "name": "knncolle",
+        "version": "3.1.1#0"
+    },
+    {
+        "name": "knncolle-annoy",
+        "version": "0.3.0#1"
+    },
+    {
+        "name": "knncolle-hnsw",
+        "version": "0.3.2#1"
+    },
+    {
+        "name": "ltla-aarand",
+        "version": "1.1.0#0"
+    },
+    {
+        "name": "ltla-cppirlba",
+        "version": "3.1.0#0"
+    },
+    {
+        "name": "ltla-sanisizer",
+        "version": "0.2.2#0"
+    },
+    {
+        "name": "ltla-subpar",
+        "version": "0.5.0#1"
+    },
+    {
+        "name": "libscran-umappp",
+        "version": "3.3.2#0"
+    }
+  ]
+}
