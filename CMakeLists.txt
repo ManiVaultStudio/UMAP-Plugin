@@ -140,16 +140,17 @@ mv_check_and_set_AVX(${UMAPANALYSIS} ${MV_UMAP_USE_AVX})
 # -----------------------------------------------------------------------------
 # Target library linking
 # -----------------------------------------------------------------------------
-target_link_libraries(${UMAPANALYSIS} PRIVATE Qt6::Widgets)
-target_link_libraries(${UMAPANALYSIS} PRIVATE Qt6::WebEngineWidgets)
-target_link_libraries(${UMAPANALYSIS} PRIVATE Qt6::Concurrent)
-
-target_link_libraries(${UMAPANALYSIS} PRIVATE libscran::umappp)
-target_link_libraries(${UMAPANALYSIS} PRIVATE knncolle::knncolle_hnsw)
-target_link_libraries(${UMAPANALYSIS} PRIVATE knncolle::knncolle_annoy)
-
-target_link_libraries(${UMAPANALYSIS} PRIVATE ManiVault::Core)
-target_link_libraries(${UMAPANALYSIS} PRIVATE ManiVault::PointData)
+target_link_libraries(${UMAPANALYSIS} 
+    PRIVATE 
+        Qt6::Widgets
+        Qt6::WebEngineWidgets
+        Qt6::Concurrent
+        libscran::umappp
+        knncolle::knncolle_hnsw
+        knncolle::knncolle_annoy
+        ManiVault::Core
+        ManiVault::PointData
+)
 
 if(MV_UMAP_USE_OPENMP AND OpenMP_CXX_FOUND)
     target_link_libraries(${UMAPANALYSIS} PRIVATE OpenMP::OpenMP_CXX)
