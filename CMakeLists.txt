@@ -50,7 +50,7 @@ if(MV_UMAP_USE_OPENMP)
     endif()
 endif()
 
-if(NOT MV_UMAP_USE_VCPKG)
+if(MV_UMAP_USE_VCPKG)
     find_package(libscran_umappp CONFIG REQUIRED)
     find_package(knncolle_knncolle_hnsw CONFIG REQUIRED)
     find_package(knncolle_knncolle_annoy CONFIG REQUIRED)
