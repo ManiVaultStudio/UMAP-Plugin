@@ -5,6 +5,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+env:
+  VCPKG_COMMIT_SHA: 29718cfec805208b4e2d80ed91e681143b488dd7 # from 2026.11.05
+
 # for matrix check https://docs.github.com/en/actions/reference/specifications-for-github-hosted-runners
 jobs:
   prepare_matrix:
@@ -52,18 +55,44 @@ jobs:
       - name: Setup python version
         uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: "3.15"
 
-      - name: Start ssh key agent
-        uses: webfactory/ssh-agent@v0.10.0
-        with:
-          ssh-private-key: ${{ secrets.RULESSUPPORT_DEPLOY_KEY }}
+      - name: Set vcpkg environment (Unix)
+        if: "!startsWith(runner.os, 'Windows')"
+        run: |
+          echo "VCPKG_DIR=${{ runner.temp }}/vcpkg" >> $GITHUB_ENV
+          echo "VCPKG_ROOT=${{ runner.temp }}/vcpkg" >> $GITHUB_ENV
+          echo "VCPKG_BINARY_SOURCES=clear;files,${{ runner.temp }}/vcpkg-cache,readwrite" >> $GITHUB_ENV
 
-      - name: Install SSH deploy key for rulessupport
-        uses: shimataro/ssh-key-action@v2
+      - name: Set vcpkg environment (Windows)
+        if: startsWith(runner.os, 'Windows')
+        shell: pwsh
+        run: |
+          echo "VCPKG_DIR=${{ runner.temp }}/vcpkg" >> $env:GITHUB_ENV
+          echo "VCPKG_ROOT=${{ runner.temp }}/vcpkg" >> $env:GITHUB_ENV
+          echo "VCPKG_BINARY_SOURCES=clear;files,${{ runner.temp }}/vcpkg-cache,readwrite" >> $env:GITHUB_ENV
+
+      - name: Set up binary cache
+        uses: actions/cache@v5
         with:
-          key: ${{ secrets.RULESSUPPORT_DEPLOY_KEY }}
-          known_hosts: github.com AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==
+          path: ${{ runner.temp }}/vcpkg-cache
+          key: vcpkg-cache-${{ runner.os }}-${{ matrix.os }}-${{ matrix.build-cversion }}-${{ env.VCPKG_COMMIT_SHA }}-${{ hashFiles('**/vcpkg.json', '**/vcpkg-overlays/**') }}
+          restore-keys: |
+            vcpkg-cache-${{ runner.os }}-${{ matrix.os }}-${{ matrix.build-cversion }}-${{ env.VCPKG_COMMIT_SHA }}
+
+      - name: Clone and checkout vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git --branch master ${{ env.VCPKG_DIR }}
+          git -C ${{ env.VCPKG_DIR }} checkout ${{ env.VCPKG_COMMIT_SHA }}
+
+      - name: Bootstrap vcpkg (Unix)
+        if: "!startsWith(runner.os, 'Windows')"
+        run: ${{ env.VCPKG_DIR }}/bootstrap-vcpkg.sh -disableMetrics
+
+      - name: Bootstrap vcpkg (Windows)
+        if: startsWith(runner.os, 'Windows')
+        shell: pwsh
+        run: ${{ env.VCPKG_DIR }}/bootstrap-vcpkg.bat -disableMetrics
 
       - name: Windows build
         if: startsWith(matrix.os, 'windows')
@@ -75,7 +104,6 @@ jobs:
           conan-user: ${{secrets.LKEB_UPLOAD_USER}}
           conan-password: ${{secrets.LKEB_UPLOAD_USER_PASSWORD}}
           conan-pem: ${{secrets.LKEB_UPLOAD_CERT_CHAIN}}
-          rs_ssh_key: ${{ secrets.RULESSUPPORT_DEPLOY_KEY }}
           sentry-upload: startsWith(github.ref, 'refs/heads/release/')
           sentry-url: ${{secrets.LKEB_SENTRY_URL }}
           sentry-org: ${{secrets.LKEB_SENTRY_ORG }}

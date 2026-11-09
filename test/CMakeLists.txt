@@ -7,7 +7,9 @@ set(UMAP_TESTS "UmapTests")
 
 # Setup of test build depends on setup of parent project, the plugin itself
 
-PROJECT(${UMAP_TESTS} LANGUAGES CXX)
+PROJECT(${UMAP_TESTS} 
+    LANGUAGES CXX
+)
 
 # -----------------------------------------------------------------------------
 # Dependencies
@@ -70,7 +72,6 @@ endif()
 
 # Request C++17
 target_compile_features(${UMAP_TESTS} PRIVATE cxx_std_20)
-target_compile_features(${UMAP_TESTS} PRIVATE c_std_17)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(${UMAP_TESTS} PRIVATE /bigobj)    # for Eigen
